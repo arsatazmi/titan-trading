@@ -1,0 +1,14 @@
+{
+  "name": "titantrading-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TitanTrading demo portal + admin. Simulated payments and bot controls; no real trading.",
+  "scripts": {
+    "start": "node server.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

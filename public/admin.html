@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Admin — TitanTrading Demo</title>
+<link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+<header class="topbar"><div class="wrap topbar-in">
+  <a class="brand" href="/"><span class="mark">T</span><span>TitanTrading<small>Panel Admin</small></span></a>
+  <nav class="nav">
+    <a href="/">Beranda</a><a href="/app">Dashboard Klien</a>
+    <span id="who" class="muted small"></span>
+    <button type="button" onclick="logout()">Keluar</button>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <section class="hero" style="padding-top:36px">
+    <h1 style="font-size:38px;margin:0">Panel <span class="gold">Admin</span></h1>
+    <p class="muted">Setujui pembayaran demo, aktifkan langganan, kelola pengguna, ubah paket, dan pantau log. Semua aksi tercatat.</p>
+    <div class="notice mt"><strong>Mode demo:</strong> Persetujuan di sini hanya mengubah status di database demo. Tidak ada pembayaran nyata yang diproses.</div>
+    <div class="stat-grid mt" id="stats"></div>
+
+    <div class="tabs mt">
+      <button type="button" class="active" data-tab="payments">Pembayaran</button>
+      <button type="button" data-tab="users">Pengguna</button>
+      <button type="button" data-tab="plans">Paket</button>
+      <button type="button" data-tab="logs">Log</button>
+    </div>
+
+    <div id="tab-payments" class="card card-pad">
+      <h2 style="font-size:20px;margin:0">Antrian Pembayaran</h2>
+      <div class="table-wrap mt"><table>
+        <thead><tr><th>Tanggal</th><th>Pengguna</th><th>Paket</th><th>Jumlah</th><th>Metode</th><th>Referensi</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody id="payRows"></tbody>
+      </table></div>
+    </div>
+
+    <div id="tab-users" class="card card-pad hidden">
+      <h2 style="font-size:20px;margin:0">Pengguna</h2>
+      <div class="table-wrap mt"><table>
+        <thead><tr><th>Nama / Email</th><th>Role</th><th>Status</th><th>Paket</th><th>Akun</th><th>Bot Jalan</th><th>Aksi</th></tr></thead>
+        <tbody id="userRows"></tbody>
+      </table></div>
+    </div>
+
+    <div id="tab-plans" class="card card-pad hidden">
+      <h2 style="font-size:20px;margin:0">Kelola Paket</h2>
+      <div id="planRows" class="grid3 mt"></div>
+    </div>
+
+    <div id="tab-logs" class="card card-pad hidden">
+      <h2 style="font-size:20px;margin:0">Log Aktivitas</h2>
+      <div id="logRows" class="mt"></div>
+    </div>
+
+    <div class="card card-pad mt">
+      <h2 style="font-size:20px;margin:0">Zona Berbahaya (Demo)</h2>
+      <p class="muted small">Reset semua data demo ke kondisi awal. Sesi kamu akan keluar.</p>
+      <button class="btn btn-danger" type="button" onclick="resetDemo()">Reset Data Demo</button>
+    </div>
+  </section>
+</main>
+
+<div class="modal-backdrop" id="rejectModal">
+  <div class="card modal card-pad">
+    <h2 style="margin:0;font-size:22px">Tolak Pembayaran</h2>
+    <form id="rejectForm">
+      <input type="hidden" id="rejectId"/>
+      <label>Alasan penolakan</label><textarea id="rejectReason" required placeholder="Contoh: referensi demo tidak ditemukan."></textarea>
+      <div class="row mt"><button class="btn btn-danger" type="submit">Tolak</button><button class="btn btn-ghost" type="button" onclick="closeReject()">Batal</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="activateModal">
+  <div class="card modal card-pad">
+    <h2 style="margin:0;font-size:22px">Aktifkan Langganan</h2>
+    <form id="activateForm">
+      <input type="hidden" id="activateUserId"/>
+      <label>Paket</label><select id="activatePlan"></select>
+      <label>Durasi (hari)</label><input id="activateDays" type="number" min="1" max="3650" value="30"/>
+      <div class="row mt"><button class="btn btn-gold" type="submit">Aktifkan</button><button class="btn btn-ghost" type="button" onclick="closeActivate()">Batal</button></div>
+    </form>
+  </div>
+</div>
+
+<footer class="footer"><div class="wrap">TitanTrading Demo — panel admin simulasi.</div></footer>
+<div class="toast"></div>
+<script src="/shared.js"></script>
+<script>
+let data=null;
+$$('.tabs button').forEach(b=>b.onclick=()=>{
+  $$('.tabs button').forEach(x=>x.classList.toggle('active',x===b));
+  ['payments','users','plans','logs'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==b.dataset.tab));
+});
+
+async function loadAll(){
+  const u=await me(); if(!u){ location.href='/'; return; }
+  if(u.role!=='admin'){ toast('Akses admin diperlukan.',true); location.href='/app'; return; }
+  $('#who').textContent=u.email;
+  data=await api('/api/admin/overview');
+  render();
+}
+function render(){
+  const s=data.stats;
+  $('#stats').innerHTML=[
+    ['Total Pengguna',s.totalUsers],['Langganan Aktif',s.activeSubscriptions],
+    ['Pembayaran Menunggu',s.pendingPayments],['Pendapatan Disetujui',fmtIDR(s.approvedRevenueIdr)],
+    ['Bot Berjalan',s.runningBots],['Total Akun Demo',s.totalAccounts]
+  ].slice(0,4).map(([k,v])=>`<div class="card stat"><div class="muted small">${k}</div><div class="num" style="font-size:24px">${v}</div></div>`).join('')
+  + `<div class="card stat"><div class="muted small">Bot Berjalan</div><div class="num" style="font-size:24px">${s.runningBots}</div></div>`
+  + `<div class="card stat"><div class="muted small">Total Akun Demo</div><div class="num" style="font-size:24px">${s.totalAccounts}</div></div>`;
+
+  $('#payRows').innerHTML = data.payments.length ? data.payments.map(p=>`<tr>
+    <td>${fmtDate(p.createdAt)}</td>
+    <td><strong>${esc(p.userName)}</strong><br/><span class="muted small">${esc(p.userEmail)}</span></td>
+    <td>${esc(p.planName)}</td><td>${fmtIDR(p.amountIdr)}</td>
+    <td>${esc(p.method)}</td><td class="mono">${esc(p.reference)}<br/><span class="muted small">${esc(p.senderName)}</span></td>
+    <td>${statusPill(p.status)}${p.status==='rejected'&&p.rejectReason?`<div class="tiny muted mt">${esc(p.rejectReason)}</div>`:''}</td>
+    <td>${p.status==='pending'?`<div class="row"><button class="btn btn-green btn-sm" onclick="approvePay('${p.id}')">Setujui</button><button class="btn btn-danger btn-sm" onclick="openReject('${p.id}')">Tolak</button></div>`:'<span class="muted small">—</span>'}</td>
+  </tr>`).join('') : `<tr><td colspan="8" class="muted">Belum ada pembayaran.</td></tr>`;
+
+  $('#userRows').innerHTML = data.users.map(u=>`<tr>
+    <td><strong>${esc(u.name)}</strong><br/><span class="muted small">${esc(u.email)}</span></td>
+    <td><span class="pill ${u.role==='admin'?'gold':'blue'}">${esc(u.role)}</span></td>
+    <td>${statusPill(u.status)}<br/>${statusPill(u.subscription?.status)}</td>
+    <td>${esc(u.planName)}</td><td>${u.accountCount}</td><td>${u.runningBots}</td>
+    <td><div class="row">
+      <button class="btn btn-gold btn-sm" onclick="openActivate('${u.id}')">Aktifkan</button>
+      <button class="btn btn-ghost btn-sm" onclick="deactivateUser('${u.id}')">Nonaktifkan</button>
+      ${u.status==='active'?`<button class="btn btn-danger btn-sm" onclick="setUserStatus('${u.id}','suspended')">Suspend</button>`:`<button class="btn btn-green btn-sm" onclick="setUserStatus('${u.id}','active')">Aktifkan Akun</button>`}
+    </div></td>
+  </tr>`).join('');
+
+  $('#planRows').innerHTML = data.plans.map(p=>`<div class="card" style="padding:16px;background:#0a1322">
+    <div class="row space-between"><strong>${esc(p.name)}</strong>${p.active?'<span class="pill green">Aktif</span>':'<span class="pill red">Nonaktif</span>'}</div>
+    <label>Harga (Rp)</label><input type="number" min="0" value="${p.priceIdr}" id="price-${p.id}"/>
+    <label>Batas akun (0 = tanpa batas)</label><input type="number" min="0" value="${p.accountLimit}" id="limit-${p.id}"/>
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="active-${p.id}" ${p.active?'checked':''} style="width:auto"/> Paket aktif</label>
+    <button class="btn btn-gold btn-sm mt" onclick="savePlan('${p.id}')">Simpan</button>
+  </div>`).join('');
+
+  $('#logRows').innerHTML = data.logs.length ? data.logs.map(l=>`<div class="small" style="padding:9px 0;border-bottom:1px solid var(--line)"><span class="muted">${fmtDate(l.createdAt)}</span> • ${esc(l.actorEmail||l.actorRole)} • <strong>${esc(l.action)}</strong><br/>${esc(l.message||'')}</div>`).join('') : `<p class="muted">Belum ada log.</p>`;
+}
+
+async function approvePay(id){ try{ await api(`/api/admin/payments/${id}/approve`,{method:'POST',body:'{}'}); toast('Pembayaran disetujui, langganan aktif.'); loadAll(); }catch(e){ toast(e.message,true); } }
+function openReject(id){ $('#rejectId').value=id; $('#rejectReason').value=''; $('#rejectModal').classList.add('open'); }
+function closeReject(){ $('#rejectModal').classList.remove('open'); }
+$('#rejectForm').onsubmit=async(e)=>{ e.preventDefault();
+  try{ await api(`/api/admin/payments/${$('#rejectId').value}/reject`,{method:'POST',body:JSON.stringify({reason:$('#rejectReason').value})}); toast('Pembayaran ditolak.'); closeReject(); loadAll(); }
+  catch(err){ toast(err.message,true); }
+};
+function openActivate(uid){
+  $('#activateUserId').value=uid;
+  $('#activatePlan').innerHTML=data.plans.map(p=>`<option value="${p.id}">${esc(p.name)} — ${fmtIDR(p.priceIdr)}</option>`).join('');
+  $('#activateModal').classList.add('open');
+}
+function closeActivate(){ $('#activateModal').classList.remove('open'); }
+$('#activateForm').onsubmit=async(e)=>{ e.preventDefault();
+  try{ await api(`/api/admin/users/${$('#activateUserId').value}/activate`,{method:'POST',body:JSON.stringify({planId:$('#activatePlan').value,days:Number($('#activateDays').value)})}); toast('Langganan diaktifkan.'); closeActivate(); loadAll(); }
+  catch(err){ toast(err.message,true); }
+};
+async function deactivateUser(uid){ if(!confirm('Nonaktifkan langganan pengguna ini? Bot akan berhenti.')) return;
+  try{ await api(`/api/admin/users/${uid}/deactivate`,{method:'POST',body:'{}'}); toast('Langganan dinonaktifkan.'); loadAll(); }catch(e){ toast(e.message,true); } }
+async function setUserStatus(uid,status){ try{ await api(`/api/admin/users/${uid}`,{method:'PATCH',body:JSON.stringify({status})}); toast('Status pengguna diperbarui.'); loadAll(); }catch(e){ toast(e.message,true); } }
+async function savePlan(pid){
+  try{ await api(`/api/admin/plans/${pid}`,{method:'PATCH',body:JSON.stringify({priceIdr:Number($('#price-'+pid).value),accountLimit:Number($('#limit-'+pid).value),active:$('#active-'+pid).checked})}); toast('Paket disimpan.'); loadAll(); }
+  catch(e){ toast(e.message,true); }
+}
+async function resetDemo(){ if(!confirm('Reset SEMUA data demo?')) return;
+  try{ await api('/api/admin/reset-demo',{method:'POST',body:'{}'}); toast('Data demo direset.'); location.href='/'; }catch(e){ toast(e.message,true); } }
+loadAll().catch(e=>toast(e.message,true));
+</script>
+</body>
+</html>

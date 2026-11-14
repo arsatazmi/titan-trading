@@ -1,0 +1,3 @@
+Source sudah diadaptasi untuk Vercel Functions + Supabase JSONB.
+Supabase dan env Vercel sudah disiapkan. Deployment belum terverifikasi.
+Repo remote GitHub belum dibuat. Lihat DEPLOY.md. Demo saja, bukan produksi.
