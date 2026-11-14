@@ -308,7 +308,7 @@ async function handleApi(req, res, url) {
   const p = url.pathname;
   const method = req.method;
   const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
-  const publicAuth = p === '/api/auth/login' || p === '/api/auth/register';
+  const publicAuth = p === '/api/auth/login' || p === '/api/auth/register' || p === '/api/pilot/heartbeat';
   let ctx = null;
   if (isMutation && !publicAuth) {
     ctx = requireAuth(req, res);
@@ -325,6 +325,57 @@ async function handleApi(req, res, url) {
     } catch (err) {
       return fail(res, 400, err.message, 'bad_body');
     }
+  }
+
+  // Pilot credentials are independent of the public demo admin password.
+  // A laptop generates both random values; the browser must provide them for every command.
+  if (p.startsWith('/api/pilot/') && method === 'POST') {
+    const deviceId = String(body.deviceId || '');
+    const secret = String(body.secret || '');
+    if (!/^[a-f0-9]{32}$/.test(deviceId) || !/^[a-f0-9]{64}$/.test(secret)) return fail(res, 400, 'ID atau kunci laptop tidak valid.');
+    if (p !== '/api/pilot/heartbeat' && (!ctx || ctx.user.role !== 'admin')) return fail(res, 403, 'Akses admin diperlukan.');
+    const db = getDb();
+    db.pilotDevices ||= [];
+    let device = db.pilotDevices.find(x => x.deviceId === deviceId);
+    const hash = sha256(secret);
+    const matches = device && crypto.timingSafeEqual(Buffer.from(device.secretHash, 'hex'), Buffer.from(hash, 'hex'));
+    if (p === '/api/pilot/register') {
+      if (device && !matches) return fail(res, 403, 'Kunci laptop tidak cocok.');
+      if (!device) {
+        if (db.pilotDevices.length >= 20) return fail(res, 400, 'Batas perangkat tercapai.');
+        device = {deviceId, secretHash:hash, leaseUntil:0, lastSeen:0, status:null};
+        db.pilotDevices.push(device); save();
+      }
+      return ok(res, {paired:true});
+    }
+    if (!matches) return fail(res, 403, 'Perangkat belum terdaftar atau kunci tidak cocok.');
+    if (p === '/api/pilot/heartbeat') {
+      // Never store broker login, server, credential, or arbitrary client-provided text.
+      const st = body.status || {};
+      const finite = v => typeof v === 'number' && Number.isFinite(v) ? v : null;
+      device.lastSeen = Date.now();
+      device.status = {connected: st.connected === true, demo: st.demo === true, ready: st.ready === true,
+        enabled: st.enabled === true, balance: finite(st.balance), equity: finite(st.equity),
+        positions: Number.isInteger(st.positions) && st.positions >= 0 && st.positions <= 10000 ? st.positions : null,
+        state: ['stopped','running','blocked'].includes(st.state) ? st.state : 'stopped'};
+      if (body.boot === true || !device.status.demo || !device.status.ready || !device.status.enabled || device.status.state === 'blocked') device.leaseUntil=0;
+      save();
+      return ok(res, {run: device.leaseUntil > Date.now(), leaseMs: Math.max(0, Math.min(35000, device.leaseUntil - Date.now()))});
+    }
+    if (p === '/api/pilot/status') {
+      return ok(res, {online: Date.now()-device.lastSeen < 30000, lastSeen:device.lastSeen,
+        status:device.status, runningRequested:device.leaseUntil > Date.now()});
+    }
+    if (p === '/api/pilot/control') {
+      if (body.action === 'stop') {device.leaseUntil=0; save(); return ok(res,{runningRequested:false});}
+      if (!['start','renew'].includes(body.action)) return fail(res,400,'Perintah tidak dikenal.');
+      if (body.action === 'renew' && device.leaseUntil <= Date.now()) return fail(res,400,'Izin berjalan berakhir; tekan Start lagi.');
+      if (Date.now()-device.lastSeen >= 30000 || !device.status?.demo || !device.status?.ready || !device.status?.enabled || device.status?.state === 'blocked')
+        return fail(res,400,'Laptop belum online, akun demo belum siap, atau bot sedang diblokir.');
+      device.leaseUntil=Date.now()+35000; save();
+      return ok(res, {runningRequested:true});
+    }
+    return fail(res,404,'Perintah tidak ditemukan.');
   }
 
   if (p === '/api/health' && method === 'GET') return ok(res, { status: 'healthy', demo: true, time: now() });

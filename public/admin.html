@@ -22,6 +22,16 @@
     <p class="muted">Setujui pembayaran demo, aktifkan langganan, kelola pengguna, ubah paket, dan pantau log. Semua aksi tercatat.</p>
     <div class="notice mt"><strong>Mode demo:</strong> Persetujuan di sini hanya mengubah status di database demo. Tidak ada pembayaran nyata yang diproses.</div>
     <div class="stat-grid mt" id="stats"></div>
+    <div class="card card-pad mt" id="pilotBridge">
+      <span class="section-kicker">PILOT EKSPERIMENTAL</span><h2>Hubungkan laptop MT5 demo</h2>
+      <p class="small muted">Gunakan ID dan kunci yang muncul di program laptop, bukan password broker. Kunci tidak disimpan di browser. Broker HFM, akun demo hedging, dan izin lokal diperlukan.</p>
+      <label for="pilotId">ID perangkat</label><input id="pilotId" autocomplete="off" placeholder="ID dari laptop"/>
+      <label for="pilotSecret">Kunci perangkat</label><input id="pilotSecret" type="password" autocomplete="off" placeholder="Kunci dari laptop"/>
+      <div class="row mt"><button class="btn btn-ghost" type="button" id="pilotPair">Hubungkan</button><button class="btn btn-green" type="button" id="pilotStart" disabled>Start demo</button><button class="btn btn-danger" type="button" id="pilotStop" disabled>Stop demo</button></div>
+      <p id="pilotStatus" role="status" class="small muted mt">Belum terhubung.</p>
+      <p class="small muted">Start hanya bekerja saat jendela ini terbuka dan laptop mengizinkan trading demo secara eksplisit. Hilang koneksi menghentikan siklus baru; posisi yang sudah terbuka tidak otomatis ditutup. Belum diuji pada broker; risiko, hasil, dan penutupan profit tidak dijamin. Jangan gunakan untuk akun real.</p>
+      <a href="/downloads/titan-mt5-bridge.zip" class="btn btn-ghost btn-sm" download>Unduh penghubung laptop ↓</a>
+    </div>
 
     <div class="tabs mt">
       <button type="button" class="active" data-tab="payments">Pembayaran</button>
@@ -92,6 +102,36 @@
 <script src="/shared.js"></script>
 <script>
 let data=null;
+let pilotPaired=false, pilotRunning=false, pilotBusy=false;
+const pilotCredentials=()=>({deviceId:$('#pilotId').value.trim(),secret:$('#pilotSecret').value.trim()});
+let pilotQueue=Promise.resolve();
+function pilotCall(path,extra={}){
+  const body=JSON.stringify({...pilotCredentials(),...extra});
+  const next=pilotQueue.catch(()=>{}).then(()=>api('/api/pilot/'+path,{method:'POST',body}));
+  pilotQueue=next; return next;
+}
+for(const input of [$('#pilotId'),$('#pilotSecret')]) input.addEventListener('input',()=>{
+  pilotPaired=false;pilotRunning=false;$('#pilotStart').disabled=true;$('#pilotStop').disabled=true;$('#pilotStatus').textContent='Perangkat belum terhubung.';
+});
+async function pilotUpdate(){
+  if(!pilotPaired || pilotBusy) return;
+  pilotBusy=true;
+  try{
+    if(pilotRunning) await pilotCall('control',{action:'renew'});
+    const x=await pilotCall('status'), s=x.status;
+    $('#pilotStatus').textContent=!x.online?'Laptop offline atau belum menjalankan penghubung.':
+      `Laptop online · ${s?.demo?'akun demo':'akun bukan demo / belum terdeteksi'} · bot ${s?.state||'stopped'} · saldo ${s?.balance ?? '-'} · equity ${s?.equity ?? '-'} · posisi ${s?.positions ?? '-'}`;
+  }catch(e){pilotRunning=false; $('#pilotStatus').textContent='Koneksi terputus: '+e.message;}
+  finally{pilotBusy=false;}
+}
+$('#pilotPair').onclick=async()=>{try{await pilotCall('register');pilotPaired=true;pilotRunning=false;$('#pilotStart').disabled=false;$('#pilotStop').disabled=false;await pilotUpdate();}catch(e){toast(e.message,true);}};
+$('#pilotStart').onclick=async()=>{
+  if(!confirm('Mengizinkan percobaan order dan penutupan posisi pada akun DEMO? Bot eksperimental dan belum diuji ke HFM.'))return;
+  try{await pilotCall('control',{action:'start'});pilotRunning=true;toast('Permintaan start demo dikirim.');await pilotUpdate();}catch(e){toast(e.message,true);}
+};
+$('#pilotStop').onclick=async()=>{pilotRunning=false;try{await pilotCall('control',{action:'stop'});toast('Permintaan stop dikirim. Posisi terbuka tidak otomatis ditutup.');await pilotUpdate();}catch(e){toast(e.message,true);}};
+setInterval(pilotUpdate,10000);
+
 $$('.tabs button').forEach(b=>b.onclick=()=>{
   $$('.tabs button').forEach(x=>x.classList.toggle('active',x===b));
   ['payments','users','plans','logs'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==b.dataset.tab));
