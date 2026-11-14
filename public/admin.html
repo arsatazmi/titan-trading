@@ -135,7 +135,7 @@ function render(){
     </div></td>
   </tr>`).join('');
 
-  $('#planRows').innerHTML = data.plans.map(p=>`<div class="card" style="padding:16px;background:#0a1322">
+  $('#planRows').innerHTML = data.plans.map(p=>`<div class="card" style="padding:16px;background:var(--card2)">
     <div class="row space-between"><strong>${esc(p.name)}</strong>${p.active?'<span class="pill green">Aktif</span>':'<span class="pill red">Nonaktif</span>'}</div>
     <label>Harga (Rp)</label><input type="number" min="0" value="${p.priceIdr}" id="price-${p.id}"/>
     <label>Batas akun (0 = tanpa batas)</label><input type="number" min="0" value="${p.accountLimit}" id="limit-${p.id}"/>

@@ -1,92 +1,53 @@
 <!doctype html>
 <html lang="id">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>TitanTrading — Portal Demo</title>
-<link rel="stylesheet" href="/styles.css"/>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="theme-color" content="#103b2b"/>
+<title>TitanTrading — Portal Demo</title><link rel="stylesheet" href="/styles.css"/>
 </head>
-<body>
+<body class="landing-page">
 <header class="topbar"><div class="wrap topbar-in">
-  <a class="brand" href="/"><span class="mark">T</span><span>TitanTrading<small>Portal Demo</small></span></a>
-  <nav class="nav">
-    <a href="#paket">Paket</a><a href="#cara">Cara Kerja</a><a href="#masuk">Masuk</a>
-    <a class="btn btn-gold btn-sm" href="/app" style="text-decoration:none">Buka Dashboard</a>
-  </nav>
+  <a class="brand" href="/" aria-label="Titan Trading beranda"><span class="mark">T</span><span class="brand-name">TITAN<small>TRADING PORTAL</small></span></a>
+  <nav class="nav" aria-label="Navigasi utama"><a href="#paket">Paket</a><a href="#cara">Cara kerja</a><a class="nav-link-cta" href="#masuk">Masuk <span aria-hidden="true">↗</span></a></nav>
 </div></header>
-
-<main class="wrap">
-  <section class="hero">
-    <div class="hero-grid">
-      <div>
-        <span class="eyebrow">Demo • Simulasi • Bukan trading nyata</span>
-        <h1>Portal langganan &amp; kontrol bot <span class="gold">TitanTrading</span></h1>
-        <p class="lead">Versi demo dengan alur lengkap: daftar, pilih paket, konfirmasi pembayaran manual, kelola akun broker demo, start/stop bot simulasi, dan panel admin untuk menyetujui pembayaran.</p>
-        <div class="notice mt"><strong>Penting:</strong> Ini mode demo. Tidak ada order yang dikirim ke pasar, tidak ada pembayaran nyata, dan jangan pernah memasukkan password broker asli. Gunakan ID demo saja.</div>
-        <div class="row mt">
-          <a class="btn btn-gold" href="#masuk" style="text-decoration:none">Mulai Demo</a>
-          <a class="btn btn-ghost" href="#paket" style="text-decoration:none">Lihat Paket</a>
-        </div>
-        <div class="grid3 mt" style="grid-template-columns:repeat(3,1fr)">
-          <div class="card card-pad"><div class="num" style="font-size:26px;font-weight:1000">3</div><div class="muted small">Paket demo dengan batas akun yang ditegakkan server</div></div>
-          <div class="card card-pad"><div class="num" style="font-size:26px;font-weight:1000">100%</div><div class="muted small">Simulasi — tanpa koneksi broker nyata</div></div>
-          <div class="card card-pad"><div class="num" style="font-size:26px;font-weight:1000">Admin</div><div class="muted small">Persetujuan pembayaran &amp; aktivasi langganan</div></div>
-        </div>
+<main>
+  <section class="auth-section wrap" id="masuk">
+    <div class="auth-copy">
+      <span class="eyebrow"><span class="status-dot"></span> PORTAL DEMO</span>
+      <h1>Semua dalam<br/>satu <em>tempat.</em></h1>
+      <p class="lead">Kelola akun, paket, dan simulasi bot trading dalam satu dashboard yang lebih sederhana.</p>
+      <div class="auth-rule"></div>
+      <p class="auth-footnote"><span class="mini-icon">↗</span><span>Ruang untuk memantau.<br/><strong>Bukan koneksi trading nyata.</strong></span></p>
+    </div>
+    <div class="auth-card card card-pad">
+      <div class="auth-head"><span class="section-kicker">SELAMAT DATANG</span><h2>Masuk ke akun</h2><p class="muted">Senang melihatmu kembali.</p></div>
+      <div class="tabs auth-tabs" role="group" aria-label="Pilih masuk atau daftar">
+        <button type="button" id="tabLogin" class="active">Masuk</button><button type="button" id="tabRegister">Buat akun</button>
       </div>
-
-      <div class="card card-pad" id="masuk">
-        <h2 style="margin:0 0 6px">Masuk / Daftar</h2>
-        <p class="muted small">Akun demo bawaan ada di bawah. Kamu juga bisa daftar akun baru.</p>
-        <div class="tabs">
-          <button type="button" id="tabLogin" class="active">Masuk</button>
-          <button type="button" id="tabRegister">Daftar</button>
-        </div>
-        <form id="loginForm">
-          <label for="loginEmail">Email</label>
-          <input id="loginEmail" type="email" autocomplete="email" required placeholder="client@titantrading.demo"/>
-          <label for="loginPassword">Password</label>
-          <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"/>
-          <button class="btn btn-gold mt" type="submit" style="width:100%">Masuk ke Dashboard</button>
-        </form>
-        <form id="registerForm" class="hidden">
-          <label for="regName">Nama lengkap</label>
-          <input id="regName" required minlength="2" placeholder="Nama kamu"/>
-          <label for="regEmail">Email</label>
-          <input id="regEmail" type="email" autocomplete="email" required placeholder="nama@email.com"/>
-          <label for="regPassword">Password (min. 10 karakter)</label>
-          <input id="regPassword" type="password" autocomplete="new-password" required minlength="10" placeholder="Password demo"/>
-          <button class="btn btn-gold mt" type="submit" style="width:100%">Daftar &amp; Masuk</button>
-        </form>
-        <div class="card mt" style="padding:14px;background:#0a1322">
-          <div class="small"><strong>Akun demo:</strong></div>
-          <div class="small muted mt" style="line-height:1.9">
-            Admin: <span class="kbd">admin@titantrading.demo</span> / <span class="kbd">TitanAdmin!2026</span><br/>
-            Klien: <span class="kbd">client@titantrading.demo</span> / <span class="kbd">TitanClient!2026</span><br/>
-            Pending: <span class="kbd">pending@titantrading.demo</span> / <span class="kbd">TitanPending!2026</span>
-          </div>
-        </div>
-      </div>
+      <form id="loginForm">
+        <label for="loginEmail">Email</label><input id="loginEmail" type="email" autocomplete="email" required placeholder="nama@email.com"/>
+        <label for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Masukkan password"/>
+        <button class="btn btn-gold auth-submit" type="submit">Masuk <span aria-hidden="true">↗</span></button>
+      </form>
+      <form id="registerForm" class="hidden">
+        <label for="regName">Nama lengkap</label><input id="regName" autocomplete="name" required minlength="2" placeholder="Nama kamu"/>
+        <label for="regEmail">Email</label><input id="regEmail" type="email" autocomplete="email" required placeholder="nama@email.com"/>
+        <label for="regPassword">Password <span class="muted">(min. 10 karakter)</span></label><input id="regPassword" type="password" autocomplete="new-password" required minlength="10" placeholder="Buat password"/>
+        <button class="btn btn-gold auth-submit" type="submit">Buat akun <span aria-hidden="true">↗</span></button>
+      </form>
+      <div class="auth-demo-note"><span class="status-dot"></span><span>Ini adalah portal simulasi. Jangan gunakan kredensial broker asli.</span></div>
+      <details class="demo-credentials"><summary>Gunakan akun demo</summary><p>Klien: <span class="mono">client@titantrading.demo</span><br/>Password: <span class="mono">TitanClient!2026</span></p><p>Admin: <span class="mono">admin@titantrading.demo</span><br/>Password: <span class="mono">TitanAdmin!2026</span></p></details>
     </div>
   </section>
-
-  <section class="section" id="paket">
-    <h2>Paket Langganan</h2>
-    <p class="muted">Harga dalam Rupiah untuk demo. Batas akun ditegakkan di server — bukan hanya di tampilan.</p>
-    <div id="plans" class="grid3 mt"><p class="muted">Memuat paket…</p></div>
-  </section>
-
-  <section class="section" id="cara">
-    <h2>Cara Kerja (Demo)</h2>
-    <div class="grid3 mt">
-      <div class="card card-pad"><h3>1. Daftar &amp; pilih paket</h3><p class="muted small">Buat akun, pilih Starter / Pro / Elite. Status awal: menunggu pembayaran.</p></div>
-      <div class="card card-pad"><h3>2. Konfirmasi pembayaran manual</h3><p class="muted small">Kirim referensi demo. Admin menyetujui di panel admin, langganan langsung aktif.</p></div>
-      <div class="card card-pad"><h3>3. Tambah akun demo &amp; start bot</h3><p class="muted small">Tambah akun broker demo (tanpa password), lalu start/stop bot simulasi. Semua angka adalah simulasi.</p></div>
-    </div>
-  </section>
+  <section class="section wrap" id="paket"><div class="section-top"><div><span class="section-kicker">PILIHAN UNTUKMU</span><h2>Paket langganan</h2></div><p class="muted">Pilih paket simulasi yang sesuai kebutuhanmu.</p></div><div id="plans" class="grid3 mt"><p class="muted">Memuat paket…</p></div></section>
+  <section class="section wrap" id="cara"><div class="section-top"><div><span class="section-kicker">MULAI DARI SINI</span><h2>Sederhana, dari awal.</h2></div></div><div class="grid3 mt steps">
+    <div class="card card-pad"><span class="step-no">01</span><h3>Buat akun</h3><p class="muted small">Daftar dan pilih paket demo yang ingin kamu coba.</p></div>
+    <div class="card card-pad"><span class="step-no">02</span><h3>Konfirmasi</h3><p class="muted small">Kirim referensi pembayaran simulasi untuk ditinjau admin.</p></div>
+    <div class="card card-pad"><span class="step-no">03</span><h3>Mulai simulasi</h3><p class="muted small">Tambahkan akun demo dan jelajahi dashboard.</p></div>
+  </div></section>
 </main>
-
-<footer class="footer"><div class="wrap">TitanTrading Demo — dibuat sebagai portal simulasi. Bukan saran investasi. Trading forex berisiko tinggi; jangan gunakan uang yang tidak siap hilang.</div></footer>
-<div class="toast"></div>
+<footer class="footer"><div class="wrap footer-inner"><span><strong>TITAN</strong> <span class="muted">/ trading portal</span></span><span>Hanya simulasi. Bukan saran investasi.</span></div></footer>
+<div class="toast" role="status" aria-live="polite"></div>
 <script src="/shared.js"></script>
 <script>
 const tabLogin=$('#tabLogin'), tabRegister=$('#tabRegister'), loginForm=$('#loginForm'), registerForm=$('#registerForm');

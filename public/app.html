@@ -1,123 +1,61 @@
 <!doctype html>
 <html lang="id">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Dashboard Klien — TitanTrading Demo</title>
-<link rel="stylesheet" href="/styles.css"/>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="theme-color" content="#103b2b"/>
+<title>Akun Saya — Titan Trading</title><link rel="stylesheet" href="/styles.css"/>
 </head>
-<body>
+<body class="dashboard-page">
 <header class="topbar"><div class="wrap topbar-in">
-  <a class="brand" href="/"><span class="mark">T</span><span>TitanTrading<small>Dashboard Klien</small></span></a>
-  <nav class="nav">
-    <a href="/">Beranda</a><a href="/admin" id="adminLink" class="hidden">Admin</a>
-    <span id="who" class="muted small"></span>
-    <button type="button" onclick="logout()">Keluar</button>
-  </nav>
+  <a class="brand" href="/" aria-label="Titan Trading beranda"><span class="mark">T</span><span class="brand-name">TITAN<small>TRADING PORTAL</small></span></a>
+  <nav class="nav" aria-label="Navigasi akun"><a href="/app" class="nav-current">Akun saya</a><a href="#payForm">Paket &amp; pembayaran</a><a href="/admin" id="adminLink" class="hidden">Admin</a><span id="who" class="sr-only"></span><button type="button" onclick="logout()">Keluar ↗</button></nav>
 </div></header>
-
-<main class="wrap">
-  <section class="hero" style="padding-top:36px">
-    <div class="row space-between">
-      <div><h1 style="font-size:38px;margin:0">Halo, <span class="gold" id="helloName">—</span></h1>
-      <p class="muted" id="subLine">Memuat status langganan…</p></div>
-      <div id="subPill"></div>
-    </div>
-    <div class="notice mt"><strong>Mode demo:</strong> Bot di sini hanya simulasi angka di browser/server demo. Tidak ada koneksi ke MT4/MT5 dan tidak ada order nyata. Jangan masukkan password broker asli — cukup ID login demo.</div>
-
-    <div class="stat-grid mt" id="stats"></div>
-
-    <div class="card card-pad mt" aria-labelledby="mt5PilotTitle">
-      <div class="row space-between">
-        <div><h2 id="mt5PilotTitle" style="font-size:20px;margin:0">Pilot Bot HFM · XAUUSD</h2>
-          <p class="muted small" style="margin:6px 0 0">Prototipe MT5 untuk akun demo di laptop Windows</p></div>
-        <span class="pill gold">Belum terhubung ke website</span>
-      </div>
-      <div class="notice mt"><strong>Belum aktif di web.</strong> Tidak ada data akun real-time, tombol start/stop web, atau order yang dikirim oleh halaman ini. Bot demo belum diuji dengan broker HFM; akun real ditolak oleh prototipe. Jangan masukkan kata sandi broker ke website ini.</div>
-      <div class="grid3 mt">
-        <div><span class="muted small">Platform / instrumen</span><div><strong>MT5 · XAUUSD</strong></div></div>
-        <div><span class="muted small">Posisi terbuka maksimum</span><div><strong>20 posisi</strong></div></div>
-        <div><span class="muted small">Perkiraan batas risiko</span><div><strong>0,5% per order · 1% harian</strong></div></div>
-      </div>
-      <p class="small muted mt">Prototipe mencoba menutup posisi miliknya saat estimasi profit positif; TP 2R adalah target cadangan. Biaya, slippage, gap, atau gangguan koneksi dapat menyebabkan rugi dan batas risiko dapat terlampaui. Filter berita/fundamental belum tersedia. Uji offline bukan bukti profitabilitas.</p>
-      <a class="btn btn-ghost btn-sm mt" href="/downloads/titan-mt5-demo-bot.zip" download>Unduh prototipe demo Windows</a>
-      <span class="muted small">Baca README dan jangan aktifkan sebelum uji bersama saat market buka.</span>
-    </div>
-
-    <div class="grid2 mt">
-      <div class="card card-pad">
-        <div class="row space-between"><h2 style="font-size:20px;margin:0">Profil</h2></div>
-        <form id="profileForm">
-          <label>Nama lengkap</label><input id="pName" required/>
-          <label>Telepon / WhatsApp</label><input id="pPhone" placeholder="08xx…"/>
-          <label>Perusahaan (opsional)</label><input id="pCompany"/>
-          <label>Catatan</label><textarea id="pNotes"></textarea>
-          <button class="btn btn-gold mt" type="submit">Simpan Profil</button>
-        </form>
-      </div>
-
-      <div class="card card-pad">
-        <h2 style="font-size:20px;margin:0">Langganan &amp; Pembayaran</h2>
-        <div id="planBox" class="mt"></div>
-        <hr style="border:0;border-top:1px solid var(--line)" class="mt mb"/>
-        <h3 style="margin:0">Konfirmasi Pembayaran Manual (Demo)</h3>
-        <form id="payForm">
-          <label>Paket</label><select id="payPlan"></select>
-          <label>Metode (demo)</label><select id="payMethod"></select>
-          <label>Nama pengirim</label><input id="paySender" required placeholder="Nama pada bukti demo"/>
-          <label>Referensi / TID demo</label><input id="payRef" required placeholder="DEMO-REF-XXXX"/>
-          <label>Catatan</label><textarea id="payNote" placeholder="Catatan tambahan (opsional)"></textarea>
-          <div class="muted small mt" id="payHint"></div>
-          <button class="btn btn-gold mt" type="submit">Kirim Konfirmasi</button>
-        </form>
-      </div>
-    </div>
-
-    <div class="card card-pad mt">
-      <div class="row space-between">
-        <h2 style="font-size:20px;margin:0">Akun Broker Demo</h2>
-        <button class="btn btn-gold btn-sm" type="button" onclick="openAccountModal()">+ Tambah Akun Demo</button>
-      </div>
-      <div class="muted small mt" id="limitLine"></div>
-      <div class="progress mt"><div id="limitBar" style="width:0%"></div></div>
-      <div id="accounts" class="mt"></div>
-    </div>
-
-    <div class="grid2 mt">
-      <div class="card card-pad">
-        <h2 style="font-size:20px;margin:0">Riwayat Pembayaran</h2>
-        <div id="payments" class="mt"></div>
-      </div>
-      <div class="card card-pad">
-        <h2 style="font-size:20px;margin:0">Log Aktivitas</h2>
-        <div id="logs" class="mt"></div>
-      </div>
+<main class="wrap dashboard-main">
+  <section class="account-intro">
+    <div class="intro-top"><div><span class="section-kicker">AKUN SAYA</span><h1>Halo, <span id="helloName">—</span><span class="hello-dot">.</span></h1><p class="muted intro-sub" id="subLine">Memuat status langganan…</p></div><div id="subPill" class="intro-pills"></div></div>
+    <div class="notice demo-notice"><strong>Portal simulasi.</strong> Belum terhubung ke MT4/MT5 dan tidak mengirim order nyata. Jangan masukkan password broker asli.</div>
+    <div class="stat-grid" id="stats"></div>
+  </section>
+  <section class="content-section" id="broker">
+    <div class="section-heading"><div><span class="section-kicker">SIMULASI AKUN</span><h2>Akun broker demo</h2><p class="muted">Tambahkan akun simulasi untuk mencoba kontrol bot.</p></div><button class="btn btn-gold btn-sm" type="button" onclick="openAccountModal()"><span aria-hidden="true" class="plus">＋</span> Tambah akun</button></div>
+    <div class="card card-pad"><div class="limit-row"><span class="muted small" id="limitLine"></span><span class="tiny muted">BATAS PAKET</span></div><div class="progress"><div id="limitBar"></div></div><div id="accounts" class="account-list"></div></div>
+  </section>
+  <section class="content-section" aria-labelledby="mt5PilotTitle">
+    <div class="section-heading"><div><span class="section-kicker">TAHAP PENGEMBANGAN</span><h2 id="mt5PilotTitle">Pilot HFM · XAUUSD</h2></div><span class="pill gold">Belum terhubung</span></div>
+    <div class="card card-pad pilot-card"><div class="pilot-intro"><span class="pilot-icon" aria-hidden="true">↗</span><div><h3>Prototipe MT5 demo</h3><p class="muted">Disiapkan untuk laptop Windows; belum dikendalikan dari website ini.</p></div></div>
+      <div class="pilot-stats"><div><span>PLATFORM</span><strong>MT5 demo</strong></div><div><span>POSISI MAKS.</span><strong>20</strong></div><div><span>BATAS RISIKO</span><strong>0,5% / order</strong></div></div>
+      <p class="small muted">Belum diuji ke HFM; filter berita belum tersedia. Penutupan profit, batas risiko, dan hasil trading tidak dijamin. Akun real ditolak oleh prototipe.</p><a class="btn btn-ghost btn-sm" href="/downloads/titan-mt5-demo-bot.zip" download>Unduh prototipe demo <span aria-hidden="true">↓</span></a>
     </div>
   </section>
-</main>
-
-<div class="modal-backdrop" id="accountModal">
-  <div class="card modal card-pad">
-    <div class="row space-between"><h2 style="margin:0;font-size:22px" id="accModalTitle">Tambah Akun Demo</h2>
-    <button class="btn btn-ghost btn-sm" type="button" onclick="closeAccountModal()">Tutup</button></div>
-    <form id="accountForm">
-      <input type="hidden" id="accId"/>
-      <label>Nama akun (label)</label><input id="accLabel" required placeholder="Akun Demo Utama"/>
-      <div class="grid2">
-        <div><label>Broker demo</label><input id="accBroker" required placeholder="Broker Demo"/></div>
-        <div><label>Platform</label><select id="accPlatform"><option>MT5</option><option>MT4</option></select></div>
+  <section class="content-section" id="langganan"><div class="section-heading"><div><span class="section-kicker">LANGGANAN</span><h2>Paket &amp; pembayaran</h2><p class="muted">Lihat paket dan kirim konfirmasi pembayaran simulasi.</p></div></div>
+    <div class="grid2 align-start">
+      <div class="card card-pad"><span class="section-kicker">PAKET SAAT INI</span><div id="planBox" class="plan-current"></div><div class="divider"></div><h3>Konfirmasi pembayaran</h3><p class="small muted">Semua metode dan referensi di bawah ini hanya untuk demo.</p>
+        <form id="payForm"><label for="payPlan">Paket</label><select id="payPlan"></select><label for="payMethod">Metode pembayaran</label><select id="payMethod"></select><label for="paySender">Nama pengirim</label><input id="paySender" required placeholder="Nama pada bukti demo"/><label for="payRef">Referensi / TID demo</label><input id="payRef" required placeholder="DEMO-REF-XXXX"/><label for="payNote">Catatan <span class="muted">(opsional)</span></label><textarea id="payNote" placeholder="Tambahkan catatan"></textarea><div class="muted small mt" id="payHint"></div><button class="btn btn-gold mt" type="submit">Kirim konfirmasi <span aria-hidden="true">↗</span></button></form>
       </div>
-      <label>Server demo</label><input id="accServer" required placeholder="Demo-Server-01"/>
-      <label>ID login demo <span class="muted">(bukan password!)</span></label><input id="accLogin" required placeholder="DEMO-100001"/>
-      <label>Profil risiko</label><select id="accRisk"><option value="conservative">Konservatif</option><option value="balanced" selected>Seimbang</option><option value="aggressive">Agresif</option></select>
-      <label>Catatan</label><textarea id="accNotes"></textarea>
-      <button class="btn btn-gold mt" type="submit" style="width:100%">Simpan Akun Demo</button>
+      <div><div class="content-section nested"><div class="section-heading compact"><h2>Riwayat pembayaran</h2></div><div class="card card-pad" id="payments"></div></div>
+        <div class="content-section nested"><div class="section-heading compact"><h2>Aktivitas</h2></div><div class="card card-pad" id="logs"></div></div></div>
+    </div>
+  </section>
+  <section class="content-section" id="profil"><div class="section-heading"><div><span class="section-kicker">INFORMASI PRIBADI</span><h2>Detail akun</h2><p class="muted">Informasi yang tersimpan di profil demo.</p></div></div>
+    <div class="card card-pad profile-card"><form id="profileForm"><label for="pName">Nama lengkap</label><input id="pName" autocomplete="name" required/><label for="pPhone">Telepon / WhatsApp</label><input id="pPhone" autocomplete="tel" placeholder="08xx…"/><label for="pCompany">Perusahaan <span class="muted">(opsional)</span></label><input id="pCompany"/><label for="pNotes">Catatan</label><textarea id="pNotes" placeholder="Tambahkan catatan"></textarea><button class="btn btn-gold mt" type="submit">Simpan detail</button></form></div>
+  </section>
+</main>
+<div class="modal-backdrop" id="accountModal" role="dialog" aria-modal="true" aria-labelledby="accModalTitle">
+  <div class="card modal card-pad"><div class="row space-between modal-title"><div><span class="section-kicker">SIMULASI AKUN</span><h2 id="accModalTitle">Tambah akun demo</h2></div><button class="close-modal" type="button" onclick="closeAccountModal()" aria-label="Tutup">×</button></div>
+    <p class="muted">Hanya data demo. Jangan masukkan password atau informasi akun broker asli.</p>
+    <form id="accountForm"><input type="hidden" id="accId"/><label for="accLabel">Nama akun</label><input id="accLabel" required placeholder="Akun Demo Utama"/>
+      <label for="accBroker">Broker demo</label><input id="accBroker" required placeholder="Broker Demo"/>
+      <label for="accPlatform">Platform</label><select id="accPlatform"><option>MT5</option><option>MT4</option></select>
+      <label for="accServer">Server demo</label><input id="accServer" required placeholder="Demo-Server-01"/>
+      <label for="accLogin">ID login demo <span class="muted">(bukan password)</span></label><input id="accLogin" required placeholder="DEMO-100001"/>
+      <label for="accRisk">Profil risiko simulasi</label><select id="accRisk"><option value="conservative">Konservatif</option><option value="balanced" selected>Seimbang</option><option value="aggressive">Agresif</option></select>
+      <label for="accNotes">Catatan <span class="muted">(opsional)</span></label><textarea id="accNotes" placeholder="Catatan tentang akun demo"></textarea>
+      <div class="modal-actions"><button class="btn btn-ghost" type="button" onclick="closeAccountModal()">Batal</button><button class="btn btn-gold" type="submit">Simpan akun</button></div>
     </form>
   </div>
 </div>
-
-<footer class="footer"><div class="wrap">TitanTrading Demo — simulasi saja, bukan saran investasi.</div></footer>
-<div class="toast"></div>
+<footer class="footer"><div class="wrap footer-inner"><span><strong>TITAN</strong> <span class="muted">/ trading portal</span></span><span>Hanya simulasi. Bukan saran investasi.</span></div></footer>
+<div class="toast" role="status" aria-live="polite"></div>
 <script src="/shared.js"></script>
 <script>
 let overview=null, bootstrap=null;
@@ -157,7 +95,7 @@ function render(){
   $('#limitBar').style.width = limit===0 ? '100%' : Math.min(100, Math.round(stats.accountCount/limit*100))+'%';
 
   $('#accounts').innerHTML = accounts.length ? accounts.map(a=>`
-    <div class="card" style="padding:16px;margin-bottom:12px;background:#0a1322">
+    <div class="card" style="padding:16px;margin-bottom:12px;background:var(--card2)">
       <div class="row space-between">
         <div><strong>${esc(a.label)}</strong> <span class="pill blue">${esc(a.platform)}</span> ${statusPill(a.bot?.state)}
         <div class="muted small mt">${esc(a.broker)} • ${esc(a.server)} • Login demo: <span class="mono">${esc(a.loginId)}</span> • Risiko: ${esc(a.risk)}</div>
@@ -178,11 +116,11 @@ function render(){
     </div>`).join('') : `<p class="muted">Belum ada akun demo. Klik “Tambah Akun Demo”.</p>`;
 
   $('#payments').innerHTML = payments.length ? payments.map(p=>`
-    <div class="card" style="padding:13px;margin-bottom:10px;background:#0a1322">
+    <div class="card" style="padding:13px;margin-bottom:10px;background:var(--card2)">
       <div class="row space-between"><strong>${fmtIDR(p.amountIdr)}</strong>${statusPill(p.status)}</div>
       <div class="muted small mt">${esc(methodLabel(p.method, bootstrap.paymentMethods))} • Ref: <span class="mono">${esc(p.reference)}</span> • ${fmtDate(p.createdAt)}</div>
       ${p.note?`<div class="small mt">${esc(p.note)}</div>`:''}
-      ${p.status==='rejected'&&p.rejectReason?`<div class="small mt" style="color:#ffb3ba">Ditolak: ${esc(p.rejectReason)}</div>`:''}
+      ${p.status==='rejected'&&p.rejectReason?`<div class="small mt" style="color:var(--red)">Ditolak: ${esc(p.rejectReason)}</div>`:''}
     </div>`).join('') : `<p class="muted">Belum ada riwayat pembayaran.</p>`;
 
   $('#logs').innerHTML = logs.length ? logs.map(l=>`<div class="small" style="padding:9px 0;border-bottom:1px solid var(--line)"><span class="muted">${fmtDate(l.createdAt)}</span><br/>${esc(l.message||l.action)}</div>`).join('') : `<p class="muted">Belum ada log.</p>`;
@@ -230,7 +168,7 @@ async function deleteAccount(id){
   catch(err){ toast(err.message,true); }
 }
 $('#accountModal').addEventListener('click',e=>{ if(e.target.id==='accountModal') closeAccountModal(); });
-setInterval(()=>{ if(overview) api('/api/client/overview').then(d=>{overview=d; render();}).catch(()=>{}); }, 20000);
+setInterval(()=>{ if(overview && !document.querySelector('form:focus-within') && !$('#accountModal').classList.contains('open')) api('/api/client/overview').then(d=>{overview=d; render();}).catch(()=>{}); }, 20000);
 loadAll().catch(err=>toast(err.message,true));
 </script>
 </body>
