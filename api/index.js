@@ -1,1 +1,5 @@
-export { handler as default } from '../server.mjs';
+import { handler } from '../server.mjs';
+
+export default function entrypoint(req, res) {
+  return handler(req, res);
+}
