@@ -1,3 +1,5 @@
 Source sudah diadaptasi untuk Vercel Functions + Supabase JSONB.
-Supabase dan env Vercel sudah disiapkan. Deployment belum terverifikasi.
-Repo remote GitHub belum dibuat. Lihat DEPLOY.md. Demo saja, bukan produksi.
+Repo: https://github.com/arsatazmi/titan-trading (publik).
+Supabase dan env Vercel sudah disiapkan; deployment belum terverifikasi.
+Sambungkan repo di dashboard Vercel dan lakukan deployment pertama.
+Demo saja, bukan produksi. Lihat DEPLOY.md.

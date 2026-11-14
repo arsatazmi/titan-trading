@@ -9,11 +9,11 @@
 - Uji lokal: 28/28; uji backend dengan Supabase nyata: 28/28 (sebelum pembatasan tick 15 detik).
 
 ## Belum selesai
-- Repo GitHub remote belum dibuat: konektor GitHub tidak didukung sesi ini.
+- Source tersedia di GitHub: https://github.com/arsatazmi/titan-trading (publik).
 - Belum ada deployment Vercel yang terverifikasi. Konektor tidak menyediakan
   projectSettings/konfirmasi autodeteksi yang dapat diperlukan pada deployment pertama.
 
-## Upload GitHub (jalankan di komputer yang sudah login GitHub CLI)
+## Alternatif upload GitHub (untuk repo baru)
 ```sh
 gh auth login
 # Di folder source yang berisi package.json:
