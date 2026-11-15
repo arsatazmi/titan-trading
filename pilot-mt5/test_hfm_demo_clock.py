@@ -4,14 +4,14 @@ import sqlite3
 import unittest
 from types import SimpleNamespace as O
 from unittest.mock import patch
-from test_bot import FakeMT5
+from test_btc import FakeRollingMT5
 from bot import UTC, Blocked, identity
 from hfm_demo_clock import run_demo_cycle, DemoClockMT5, normalized_tick
 
 class Tests(unittest.TestCase):
     def setUp(self):
         self.now=dt.datetime(2026,11,16,14,50,5,tzinfo=UTC)
-        self.mt=FakeMT5(self.now)
+        self.mt=FakeRollingMT5(self.now)
         self.mt.account.credit=0
         self.mt.tick.time+=7200
         self.db=sqlite3.connect(':memory:')

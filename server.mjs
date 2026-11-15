@@ -18,7 +18,7 @@ const COOKIE = 'tt_session';
 const SESSION_DAYS = 7;
 const MAX_BODY = 100_000;
 const DEMO_NOTICE = 'Mode demo: tidak ada trading nyata, tidak ada pembayaran nyata, dan jangan masukkan password broker asli.';
-// Experimental DEMO only. A protocol-3 bridge, local order opt-in, fresh quote
+// Experimental DEMO only. BTC requires protocol-4; local opt-in, fresh quote
 // and short lease are all required; broker execution is not guaranteed.
 const PILOT_DEMO_ENABLED = true;
 const PAYMENT_METHODS = [
@@ -360,10 +360,10 @@ async function handleApi(req, res, url) {
       device.status = {connected: st.connected === true, demo: st.demo === true, ready: st.ready === true,
         enabled: st.enabled === true, balance: finite(st.balance), equity: finite(st.equity),
         positions: Number.isInteger(st.positions) && st.positions >= 0 && st.positions <= 10000 ? st.positions : null,
-        protocol: st.protocol === 3 ? 3 : (st.protocol === 2 ? 2 : 1), quoteOkXau: st.quoteOkXau === true, quoteOkBtc: st.quoteOkBtc === true,
+        protocol: st.protocol === 4 ? 4 : (st.protocol === 3 ? 3 : (st.protocol === 2 ? 2 : 1)), quoteOkXau: st.quoteOkXau === true, quoteOkBtc: st.quoteOkBtc === true,
         state: ['stopped','running','blocked'].includes(st.state) ? st.state : 'stopped'};
       const selectedQuoteOk = device.symbol === '#BTCUSD' ? device.status.quoteOkBtc : device.status.quoteOkXau;
-      if (!PILOT_DEMO_ENABLED || body.boot === true || device.status.protocol !== 3 || !device.status.connected || !device.status.demo || !device.status.ready || !device.status.enabled || device.status.state === 'blocked' || !selectedQuoteOk) device.leaseUntil=0;
+      if (!PILOT_DEMO_ENABLED || body.boot === true || (device.status.protocol < 3 || (device.symbol === '#BTCUSD' && device.status.protocol < 4)) || !device.status.connected || !device.status.demo || !device.status.ready || !device.status.enabled || device.status.state === 'blocked' || !selectedQuoteOk) device.leaseUntil=0;
       save();
       return ok(res, {run: device.leaseUntil > Date.now(), symbol: device.symbol || 'XAUUSD', leaseMs: Math.max(0, Math.min(35000, device.leaseUntil - Date.now()))});
     }
@@ -378,7 +378,7 @@ async function handleApi(req, res, url) {
       if (body.action === 'renew' && device.leaseUntil <= Date.now()) return fail(res,400,'Izin berjalan berakhir; tekan Start lagi.');
       const symbol = body.symbol || 'XAUUSD';
       if (!['XAUUSD','#BTCUSD'].includes(symbol)) return fail(res,400,'Simbol tidak didukung.');
-      if (device.status?.protocol !== 3) return fail(res,400,'Perbarui penghubung laptop sebelum menjalankan bot demo.');
+      if ((device.status?.protocol || 0) < (symbol === '#BTCUSD' ? 4 : 3)) return fail(res,400,'Perbarui penghubung laptop sebelum menjalankan bot demo.');
       if (body.action === 'renew' && symbol !== (device.symbol || 'XAUUSD')) return fail(res,400,'Simbol berbeda; hentikan bot sebelum mengganti.');
       if (body.action === 'start' && device.leaseUntil > Date.now() && symbol !== (device.symbol || 'XAUUSD')) return fail(res,400,'Hentikan bot sebelum mengganti simbol.');
       if ((symbol === '#BTCUSD' && !device.status?.quoteOkBtc) || (symbol === 'XAUUSD' && !device.status?.quoteOkXau)) return fail(res,400,'Harga tidak segar atau waktu tick tidak valid; order diblokir.');

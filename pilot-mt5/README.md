@@ -11,7 +11,7 @@ Portal demo ini belum diaudit dan memiliki akun admin demo lemah/terbuka. Jangan
 3. Di folder penghubung, uji dependensi secara offline:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest -v test_bridge test_bot test_btc test_hfm_demo_clock test_hfm_clock_research test_shadow_daily_risk
+.\.venv\Scripts\python.exe -m unittest -v test_bridge test_bot test_btc test_btc_rolling test_hfm_demo_clock test_hfm_clock_research test_shadow_daily_risk
 ```
 
 4. Jalankan mode pantau read-only:
@@ -31,13 +31,13 @@ Login di https://titan-trading-puce.vercel.app/admin dan hubungkan ID/kunci pera
 .\.venv\Scripts\python.exe bridge.py --enable-demo-trading
 ```
 
-- Pilih **XAUUSD** atau **#BTCUSD**, lalu klik **Start demo**. Server hanya menerima bridge protokol 3 terbaru dan quote yang terbaca valid. Tetap buka panel, laptop dan MT5; izin berjalan diperbarui tiap beberapa detik dan habis sekitar 35 detik setelah sambungan terputus. Siklus yang sedang berjalan masih dapat selesai setelah Stop atau lease kedaluwarsa. Stop tidak otomatis menutup posisi; periksa tab Trade MT5.
-- Hanya satu simbol dalam satu waktu. Jika posisi bot pada simbol lain masih terbuka, perpindahan diblokir. Sinyal BTC memakai ORB BUY sesi New York yang sama dengan XAUUSD, **bukan** strategi 24 jam; bot bisa menunggu lama dan mungkin tidak membuka order. Tidak ada filter berita. Awal rentang 09:30 NY, sesudah 15 menit menunggu breakout candle M5; jendela hingga 15:30 NY.
-- Eksperimen target 0,5% per order, 1% risiko gabungan/rugi harian dan maksimal 20 posisi. Ini estimasi, **bukan batas kerugian**. Spread, komisi, gap, slippage, posisi manual, gangguan jaringan, hasil order tidak pasti, atau penolakan broker bisa mengubah hasil. TP disetel sekitar 2R; penutupan profit tidak dijamin.
+- Pilih **XAUUSD** atau **#BTCUSD**, lalu klik **Start demo**. Untuk BTC server memerlukan bridge protokol 4; XAUUSD minimal protokol 3. Quote harus terbaca valid. Tetap buka panel, laptop dan MT5; izin berjalan diperbarui tiap beberapa detik dan habis sekitar 35 detik setelah sambungan terputus. Siklus yang sedang berjalan masih dapat selesai setelah Stop atau lease kedaluwarsa. Stop tidak otomatis menutup posisi; periksa tab Trade MT5.
+- Hanya satu simbol dalam satu waktu. Jika posisi bot pada simbol lain masih terbuka, perpindahan diblokir. BTC: setiap candle M5 yang sudah tutup dibandingkan dengan high/low 12 candle M5 sebelumnya (1 jam); BUY hanya bila close di atas high dan sinyal berumur maksimal 60 detik. Tidak ada batas sesi NY dan tidak ada filter berita; ketersediaan bergantung broker. Maksimal satu posisi BTC milik bot pada satu waktu. Candle kurang/lonjakan waktu membuat order diblokir. Emas tetap menggunakan ORB 09:30–09:45 NY, jendela hingga 15:30 NY.
+- Eksperimen target 0,5% per order, 1% risiko gabungan/rugi harian dan maksimal 20 posisi. Ini estimasi, **bukan batas kerugian**. Spread, komisi, gap, slippage, posisi manual, gangguan jaringan, hasil order tidak pasti, atau penolakan broker bisa mengubah hasil. SL memakai titik tengah rentang dan TP disetel sekitar 2R, tetapi logika lama juga dapat menutup posisi bot lebih awal bila estimasi profit bersih positif; penutupan profit tidak dijamin.
 - Saat hasil order tidak pasti, bot menyimpan intent dan memblokir order baru. Jangan hapus `bot-state.sqlite3` atau lock tanpa memeriksa posisi serta riwayat MT5. Tidak ada distributed lock untuk laptop lain: jangan jalankan bridge lain pada akun yang sama.
 
 ## Waktu server HFM
 
 Sampel pada 15 November 2026 menunjukkan waktu tick, candle dan transaksi sekitar dua jam di depan UTC. Bridge ini memakai model kandidat waktu server HFM GMT+2 musim dingin/GMT+3 musim panas, bukan offset +2 tetap; model memblokir siklus bila data/quote tidak konsisten atau dekat perubahan DST yang diperkirakan. Jam perubahan broker dan kelengkapan riwayat belum dibuktikan untuk seluruh musim. Jam laptop harus benar. Perhitungan rugi memakai hari New York dan dua pembacaan riwayat; transaksi penyesuaian saldo atau credit membuat proses berhenti. Ini tetap tidak menjamin perhitungan sempurna.
 
-Ide opening-range diadaptasi secara eksperimental dari `trader-entry` pada https://github.com/Jakeschincariol/day-trader-skill (MIT); proyek itu bukan konektor HFM dan tidak memvalidasi strategi ini.
+Sinyal BTC adalah adaptasi rolling-range terpisah, bukan entry upstream saham. BTC memakai kalkulasi midpoint/2R dan validasi minimum jarak stop dari `trader-exit` upstream (berbasis pembulatan sen), lalu disesuaikan dengan tick dan ukuran lot MT5. Risk check dan sizing upstream saham tidak dipakai; pengaman HFM di bot ini adalah adaptasi. Sumber https://github.com/Jakeschincariol/day-trader-skill (MIT); lisensi di `DAY_TRADER_SKILL_LICENSE.txt`. Proyek upstream bukan konektor HFM dan tidak memvalidasi strategi ini.

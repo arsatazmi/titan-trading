@@ -18,6 +18,8 @@ import sys
 import time
 
 from monitor import analyze, UTC, NY
+from btc_rolling import evaluate as analyze_btc, required_window as btc_window
+import upstream_trader_exit
 
 MAGIC = 73657151
 MAX_POSITIONS = 20
@@ -222,16 +224,24 @@ def run_cycle(mt5, symbol, state, now):
     if equity <= baseline * (1 - DAILY_LOSS):
         raise Blocked('batas rugi harian 1% tercapai; order baru dihentikan')
     tick = fresh_tick(mt5, symbol, now)
-    start = dt.datetime.combine(now.astimezone(NY).date(), dt.time(9,30), tzinfo=NY).astimezone(UTC)
-    if now < start:
-        return 'Menunggu sesi New York'
+    if symbol == '#BTCUSD':
+        # One owned BTC position at a time; manual positions remain included in risk.
+        if any(p.symbol == symbol and p.magic == MAGIC for p in positions):
+            return 'Menunggu posisi BTC bot selesai'
+        start, _ = btc_window(now)
+    else:
+        start = dt.datetime.combine(now.astimezone(NY).date(), dt.time(9,30), tzinfo=NY).astimezone(UTC)
+        if now < start:
+            return 'Menunggu sesi New York'
     bars = mt5.copy_rates_range(symbol, mt5.TIMEFRAME_M5, start, now)
     if bars is None:
         raise Blocked('candle tidak tersedia')
     rows = [{k: row[k].item() for k in ('time','high','low','close')} for row in bars]
-    signal = analyze(rows, now)
+    signal = analyze_btc(rows, now) if symbol == '#BTCUSD' else analyze(rows, now)
+    if symbol == '#BTCUSD' and signal.get('status') == 'no_data':
+        raise Blocked('candle BTC tidak lengkap atau tidak valid: '+str(signal.get('reason','no_data')))
     if signal.get('status') != 'breakout_observed' or signal['last_close'] <= signal['range_high']:
-        return 'Menunggu candle close di atas opening range'
+        return 'Menunggu breakout M5 BTC' if symbol == '#BTCUSD' else 'Menunggu candle close di atas opening range'
     bar = dt.datetime.fromisoformat(signal['last_bar_utc'])
     if not 0 <= (now - (bar + dt.timedelta(minutes=5))).total_seconds() <= 60:
         return 'Sinyal terlalu lama; menunggu candle berikutnya'
@@ -242,8 +252,17 @@ def run_cycle(mt5, symbol, state, now):
     if int(info.trade_mode) not in (mt5.SYMBOL_TRADE_MODE_FULL, mt5.SYMBOL_TRADE_MODE_LONGONLY):
         raise Blocked('simbol tidak diizinkan untuk buy')
     step = number(info.trade_tick_size)
-    stop = floor_step((number(signal['range_high']) + number(signal['range_low'])) / 2, step)
     price = number(tick.ask)
+    if symbol == '#BTCUSD':
+        try:
+            # Original skill's planner uses cents; broker tick rounding and sizing remain MT5-specific.
+            plan = upstream_trader_exit.compute(price, 'or_mid', None, 'r', Decimal('2'),
+                                                signal['range_high'], signal['range_low'])
+            stop = floor_step(float(plan['stop']), step)
+        except (upstream_trader_exit.PlanError, ValueError, ArithmeticError) as e:
+            raise Blocked('rencana stop/target ditolak: '+str(e))
+    else:
+        stop = floor_step((number(signal['range_high']) + number(signal['range_low'])) / 2, step)
     if stop <= 0 or stop >= price:
         raise Blocked('stop loss tidak valid')
     # Keep spread small relative to planned stop; reject rather than silently widen risk.

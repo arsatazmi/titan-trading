@@ -46,7 +46,7 @@ def number(x):
 
 def snapshot(mt5, enabled, state):
     """No broker credentials, server names or account numbers leave the laptop."""
-    st = {'connected': False, 'demo': False, 'ready': False, 'enabled': enabled, 'state': state, 'protocol': 3}
+    st = {'connected': False, 'demo': False, 'ready': False, 'enabled': enabled, 'state': state, 'protocol': 4}
     account = mt5.account_info()
     terminal = mt5.terminal_info()
     if not account or not terminal or not terminal.connected:

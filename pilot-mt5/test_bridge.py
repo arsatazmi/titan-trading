@@ -30,7 +30,7 @@ class BridgeTests(unittest.TestCase):
         offset=hfm_demo_clock.ClockWindow.candidate(now,now).offset.total_seconds()
         fake.symbol_info_tick=lambda symbol:NS(bid=100,ask=101,time=__import__('time').time()+offset)
         st,_=bridge.snapshot(fake,True,'stopped')
-        self.assertTrue(st['quoteOkBtc']); self.assertEqual(st['protocol'],3)
+        self.assertTrue(st['quoteOkBtc']); self.assertEqual(st['protocol'],4)
     def test_wrong_offset_quote_is_not_ready(self):
         fake=FakeMT5()
         st,_=bridge.snapshot(fake,True,'stopped')
