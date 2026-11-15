@@ -36,7 +36,7 @@
         return;
       }
       try {
-        const r = await fetch('/api/auth/session', {
+        const r = await fetch('/api/oauth-session', {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json', 'X-Titan-Client': '1' },

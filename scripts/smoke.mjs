@@ -65,7 +65,7 @@ try {
   check('master dashboard served', admin.status === 200 && admin.text.includes('Master Dashboard'));
 
   const callback = await req('/auth-callback.html');
-  check('OAuth callback served', callback.status === 200 && callback.text.includes('/api/auth/session'));
+  check('OAuth callback served', callback.status === 200 && callback.text.includes('/api/oauth-session'));
 
   const backend = await req('/backend.js');
   check('backend bridge served', backend.status === 200 && backend.text.includes('/api/state'));
@@ -76,13 +76,13 @@ try {
   const guarded = await req('/api/state?path=users/test');
   check('state requires authentication', guarded.status === 401, JSON.stringify(guarded.data));
 
-  const guardedAdmin = await req('/api/admin/users');
+  const guardedAdmin = await req('/api/admin-users');
   check('admin requires authentication', guardedAdmin.status === 401);
 
-  const noCsrf = await req('/api/auth/login', { method: 'POST', body: { email: 'a@b.co', password: 'secret1' } });
+  const noCsrf = await req('/api/login', { method: 'POST', body: { email: 'a@b.co', password: 'secret1' } });
   check('mutation without CSRF header rejected', noCsrf.status === 403, JSON.stringify(noCsrf.data));
 
-  const google = await req('/api/auth/google');
+  const google = await req('/api/oauth-google');
   check('Google provider reports honest disabled state', google.status === 200 && google.data?.enabled === false);
 
   const missing = await req('/api/does-not-exist');

@@ -24,7 +24,7 @@
 3. Environment variables pada proyek Vercel: `SUPABASE_URL`,
    `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`,
    `ADMIN_EMAILS`, `GOOGLE_OAUTH_ENABLED`.
-4. `vercel.json`: dua Serverless Function (`api/index.js`, `api/[...path].js`) dengan
+4. `vercel.json`: dua Serverless Function (`api/index.js`, `api/[path].js`) dengan
    `includeFiles: public/**`, rewrite `/admin` → `/admin.html`.
 
 ## Cara deploy ulang

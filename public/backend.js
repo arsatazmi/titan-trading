@@ -92,7 +92,7 @@
 
   const fbAuthMethods = {
     async signInWithEmailAndPassword(_auth, email, password) {
-      const d = await api('/api/auth/login', {
+      const d = await api('/api/login', {
         method: 'POST',
         body: JSON.stringify({ email, password })
       });
@@ -100,7 +100,7 @@
       return { user: d.user };
     },
     async createUserWithEmailAndPassword(_auth, email, password, name) {
-      const d = await api('/api/auth/register', {
+      const d = await api('/api/register', {
         method: 'POST',
         body: JSON.stringify({ email, password, name: name || '' })
       });
@@ -108,13 +108,13 @@
       return { user: d.user };
     },
     async signInWithPopup() {
-      const d = await api('/api/auth/google');
+      const d = await api('/api/oauth-google');
       if (!d.enabled) throw new Error(d.error || 'Google sign-in belum diaktifkan. Gunakan email & password.');
       window.location.href = d.url;
       return new Promise(() => {}); // navigation takes over
     },
     async signOut() {
-      try { await api('/api/auth/logout', { method: 'POST', body: '{}' }); } catch { /* ignore */ }
+      try { await api('/api/logout', { method: 'POST', body: '{}' }); } catch { /* ignore */ }
       clearPollers();
       setUser(null);
     },

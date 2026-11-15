@@ -81,7 +81,7 @@
         <strong>How activation works:</strong> a client submits a payment reference in the portal, then you
         confirm it here. Setting status to <code>active</code> unlocks broker accounts and bot controls;
         setting it to <code>pending</code> or <code>inactive</code> stops all bots for that user.
-        Bot start/stop commands are exposed at <code>/api/admin/commands</code> for the MT5 bridge worker.
+        Bot start/stop commands are exposed at <code>/api/admin-commands</code> for the MT5 bridge worker.
       </div>
 
       <div class="tabs">
@@ -126,7 +126,7 @@
     async function loadUsers() {
       const box = document.getElementById('tab-users');
       try {
-        const d = await api('/api/admin/users');
+        const d = await api('/api/admin-users');
         if (!d.users.length) { box.innerHTML = '<div class="card empty">No users registered yet.</div>'; return; }
         box.innerHTML = d.users.map((u) => {
           const payments = Object.entries(u.payments || {});
@@ -187,7 +187,7 @@
 
     async function saveUser(uid) {
       try {
-        await api('/api/admin/users/' + encodeURIComponent(uid), {
+        await api('/api/admin-user?uid=' + encodeURIComponent(uid), {
           method: 'PATCH',
           body: JSON.stringify({
             plan: document.getElementById('plan-' + uid).value,
@@ -202,7 +202,7 @@
     async function payAction(uid, key, action) {
       try {
         const body = action === 'approve' ? { approvePaymentKey: key, status: 'active' } : { rejectPaymentKey: key };
-        await api('/api/admin/users/' + encodeURIComponent(uid), { method: 'PATCH', body: JSON.stringify(body) });
+        await api('/api/admin-user?uid=' + encodeURIComponent(uid), { method: 'PATCH', body: JSON.stringify(body) });
         toast(action === 'approve' ? 'Payment confirmed and account activated' : 'Payment rejected');
         await loadUsers();
       } catch (err) { toast(err.message); }
@@ -211,11 +211,11 @@
     async function loadCommands() {
       const box = document.getElementById('tab-commands');
       try {
-        const d = await api('/api/admin/commands');
+        const d = await api('/api/admin-commands');
         if (!d.commands.length) { box.innerHTML = '<div class="card empty">No active broker accounts yet.</div>'; return; }
         box.innerHTML = `<div class="card">
           <div class="email">Bridge command feed</div>
-          <p class="sub" style="margin:6px 0 0">Generated ${fmt(d.generatedAt)} · Poll <code>GET /api/admin/commands</code> from the MT5 worker.</p>
+          <p class="sub" style="margin:6px 0 0">Generated ${fmt(d.generatedAt)} · Poll <code>GET /api/admin-commands</code> from the MT5 worker.</p>
           <table>
             <thead><tr><th>User</th><th>Account</th><th>Broker / Server</th><th>Login</th><th>Command</th></tr></thead>
             <tbody>${d.commands.map((c) => `
@@ -234,7 +234,7 @@
     async function loadEvents() {
       const box = document.getElementById('tab-events');
       try {
-        const d = await api('/api/admin/events');
+        const d = await api('/api/admin-events');
         if (!d.events.length) { box.innerHTML = '<div class="card empty">No events recorded yet.</div>'; return; }
         box.innerHTML = `<div class="card"><table>
           <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Detail</th></tr></thead>
@@ -257,7 +257,7 @@
 
     document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.tab)));
     document.getElementById('signout').addEventListener('click', async () => {
-      try { await api('/api/auth/logout', { method:'POST', body:'{}' }); } catch {}
+      try { await api('/api/logout', { method:'POST', body:'{}' }); } catch {}
       location.href = '/';
     });
 

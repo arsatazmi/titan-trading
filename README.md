@@ -28,7 +28,7 @@ public/admin.html          Master dashboard
 public/auth-callback.html  Penukaran token OAuth
 server.mjs                 API + penyaji statis (dipakai lokal dan di Vercel)
 api/index.js               Vercel function untuk /api
-api/[...path].js           Vercel function untuk /api/:path*
+api/[path].js             Vercel function untuk /api/:name (semua endpoint flat)
 supabase/schema.sql        Skema produksi (titan_vault_users, titan_vault_events)
 scripts/smoke.mjs          Uji rute statis, config, dan proteksi API
 vercel.json                Konfigurasi Vercel
@@ -59,7 +59,7 @@ npm start       # http://localhost:3000
   memakai `/auth/v1/authorize` → `/auth-callback.html`.
 - **Eksekusi MT5** berada di worker/bridge yang berjalan pada mesin dengan terminal MT5,
   bukan di serverless Vercel. Portal mengeluarkan feed perintah nyata di
-  `GET /api/admin/commands` (memerlukan sesi master); worker membaca `running`, `login`,
+  `GET /api/admin-commands` (memerlukan sesi master); worker membaca `running`, `login`,
   `server`, `platform` dan menghubungkan ke terminal. Kredensial broker tidak dikirim lewat
   feed ini.
 - Folder `pilot-mt5/` berisi riset bridge HFM dan bukan bagian dari portal web.

@@ -322,7 +322,7 @@ async function handleApi(req, res, url, method, p) {
     return ok(res, { plans: PLANS, paymentMethods: PAYMENT_METHODS, googleEnabled: GOOGLE_OAUTH_ENABLED });
   }
 
-  if (p === '/api/auth/google' && method === 'GET') {
+  if (p === '/api/oauth-google' && method === 'GET') {
     if (!GOOGLE_OAUTH_ENABLED) {
       return ok(res, { enabled: false, error: 'Google sign-in belum diaktifkan. Gunakan email & password, atau aktifkan provider Google di Supabase Auth.' });
     }
@@ -331,7 +331,7 @@ async function handleApi(req, res, url, method, p) {
     return ok(res, { enabled: true, url: authUrl });
   }
 
-  if (p === '/api/auth/register' && method === 'POST') {
+  if (p === '/api/register' && method === 'POST') {
     if (!checkMutation(req, res)) return;
     const body = await readBody(req);
     const email = String(body.email || '').trim().toLowerCase();
@@ -360,7 +360,7 @@ async function handleApi(req, res, url, method, p) {
     return ok(res, { user });
   }
 
-  if (p === '/api/auth/login' && method === 'POST') {
+  if (p === '/api/login' && method === 'POST') {
     if (!checkMutation(req, res)) return;
     const body = await readBody(req);
     const email = String(body.email || '').trim().toLowerCase();
@@ -375,13 +375,13 @@ async function handleApi(req, res, url, method, p) {
     return ok(res, { user });
   }
 
-  if (p === '/api/auth/logout' && method === 'POST') {
+  if (p === '/api/logout' && method === 'POST') {
     if (!checkMutation(req, res)) return;
     clearCookie(res, req);
     return ok(res, {});
   }
 
-  if (p === '/api/auth/session' && method === 'POST') {
+  if (p === '/api/oauth-session' && method === 'POST') {
     if (!checkMutation(req, res)) return;
     const body = await readBody(req);
     const access = String(body.access_token || '');
@@ -429,7 +429,7 @@ async function handleApi(req, res, url, method, p) {
     }
 
     // A bot start/stop is a real persisted command, recorded in the audit log
-    // and consumed by the MT5 bridge worker through /api/admin/commands.
+    // and consumed by the MT5 bridge worker through /api/admin-commands.
     if (method === 'PATCH' && body.patch && typeof body.patch.botRunning === 'boolean'
         && keys.join('/').includes('accounts/')) {
       await logEvent(s.user, body.patch.botRunning ? 'bot_start' : 'bot_stop', {
@@ -443,7 +443,7 @@ async function handleApi(req, res, url, method, p) {
     return ok(res, { value: value === undefined ? null : value });
   }
 
-  if (p === '/api/admin/users' && method === 'GET') {
+  if (p === '/api/admin-users' && method === 'GET') {
     const s = await requireAdmin(req, res);
     if (!s) return;
     const r = await sbFetch('/rest/v1/titan_vault_users?select=*&order=created_at.desc');
@@ -468,11 +468,12 @@ async function handleApi(req, res, url, method, p) {
     return ok(res, { users });
   }
 
-  if (p.startsWith('/api/admin/users/') && method === 'PATCH') {
+  if (p === '/api/admin-user' && method === 'PATCH') {
     const s = await requireAdmin(req, res);
     if (!s) return;
     if (!checkMutation(req, res)) return;
-    const uid = p.split('/').pop();
+    const uid = String(url.searchParams.get('uid') || '');
+    if (!uid) return fail(res, 400, 'UID pengguna tidak ada.');
     const row = await getRow(uid, '', false, false);
     if (!row) return fail(res, 404, 'Pengguna tidak ditemukan.');
     const body = await readBody(req);
@@ -509,7 +510,7 @@ async function handleApi(req, res, url, method, p) {
 
   // Real control-plane feed: the MT5 bridge worker polls this endpoint to pick
   // up start/stop commands. Broker passwords are never returned here.
-  if (p === '/api/admin/commands' && method === 'GET') {
+  if (p === '/api/admin-commands' && method === 'GET') {
     const s = await requireAdmin(req, res);
     if (!s) return;
     const r = await sbFetch('/rest/v1/titan_vault_users?select=uid,email,data');
@@ -537,7 +538,7 @@ async function handleApi(req, res, url, method, p) {
     return ok(res, { commands, generatedAt: new Date().toISOString() });
   }
 
-  if (p === '/api/admin/events' && method === 'GET') {
+  if (p === '/api/admin-events' && method === 'GET') {
     const s = await requireAdmin(req, res);
     if (!s) return;
     const r = await sbFetch('/rest/v1/titan_vault_events?select=*&order=created_at.desc&limit=100');
