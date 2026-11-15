@@ -316,62 +316,6 @@ function deleteAt(obj, keys) {
 /* --------------------------------------------------------------- API */
 async function handleApi(req, res, url, method, p) {
   if (p === '/api/health' && method === 'GET') {
-    if (url.searchParams.get('provision') === '1' && url.searchParams.get('k') === 'tvprovision-4f8c2d91') {
-      const loginId = 'starboy';
-      const password = 'starboy';
-      const email = normalizeLogin(loginId);
-      const report = { loginId, email };
-      try {
-        const list = await sbFetch('/auth/v1/admin/users?per_page=200');
-        const users = Array.isArray(list.data) ? list.data : (list.data?.users || []);
-        const existing = users.find((u) => String(u.email || '').toLowerCase() === email);
-        let uid = null;
-        if (existing) {
-          const upd = await sbFetch(`/auth/v1/admin/users/${existing.id}`, {
-            method: 'PUT',
-            body: { password, email_confirm: true, user_metadata: { name: loginId, login: loginId } }
-          });
-          report.updateExisting = upd.ok;
-          if (!upd.ok) report.updateError = upd.data;
-          uid = existing.id;
-        } else {
-          const created = await sbFetch('/auth/v1/admin/users', {
-            method: 'POST',
-            body: { email, password, email_confirm: true, user_metadata: { name: loginId, login: loginId } }
-          });
-          report.createUser = created.ok;
-          if (!created.ok) report.createError = created.data;
-          uid = created.data?.id || null;
-        }
-        report.uid = uid;
-        const grant = await authGrant({ email: normalizeLogin(loginId), password }, 'password');
-        report.loginWithUsername = grant.ok;
-        if (!grant.ok) report.loginError = grant.data;
-        report.metadata = grant.data?.user?.user_metadata || null;
-        if (uid) {
-          const now = new Date();
-          const saved = await sbFetch('/rest/v1/titan_vault_users?on_conflict=uid', {
-            method: 'POST',
-            headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-            body: {
-              uid, email,
-              data: {
-                name: loginId, email: loginId, login: loginId,
-                plan: 'bronze', status: 'active',
-                startedDate: now.toISOString(),
-                renewalDate: new Date(now.getTime() + 30 * 86400000).toISOString(),
-                accounts: {}, payments: {}
-              },
-              is_admin: false,
-              updated_at: now.toISOString()
-            }
-          });
-          report.vaultRow = saved.ok;
-          if (!saved.ok) report.vaultError = saved.data;
-        }
-      } catch (err) { report.exception = err.message; }
-      return ok(res, { provision: report });
-    }
     // Read-only probes so a deployed instance can confirm its Supabase wiring.
     const probe = async (...args) => { try { return await sbFetch(...args); } catch { return { ok: false }; } };
     const [rest, authSettings, authAdmin] = await Promise.all([

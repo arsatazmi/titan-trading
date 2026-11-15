@@ -3,8 +3,8 @@ TITAN VAULT — STATUS PRODUKSI (15 November 2026)
 
 URL        : https://titan-trading-puce.vercel.app
 Master     : https://titan-trading-puce.vercel.app/admin
-Deploy     : dpl_34GtC9NZxHopVB981PwmtXuc3RxH (READY / PROMOTED)
-Branch     : arena/e1b6686c-titan-trading @ 5db90d5
+Deploy     : produksi (READY / PROMOTED)
+Branch     : arena/e1b6686c-titan-trading
 
 Aplikasi : Portal akun produksi — bukan demo, bukan simulasi
 Backend  : Supabase Auth + Postgres, cookie sesi HttpOnly, CSRF + cek origin
@@ -12,6 +12,14 @@ Frontend : Titan Vault satu halaman, bahasa Inggris, tema krem/hijau sesuai refe
 Paket    : PRO $50 / BRONZE $100 / PLATINUM $250 per bulan
 Bayar    : MTN 0788087502, Airtel 0743453912, Binance USDT TRC20, WhatsApp 256743453912
 Master   : aktivasi, ubah paket, konfirmasi/tolak pembayaran, audit, feed perintah bot
+
+
+AKUN
+----
+- Login bisa memakai username (tanpa @) maupun email. Username dipetakan ke
+  identitas internal @titanvault.local di Supabase Auth.
+- Akun `starboy` sudah dibuat: status ACTIVE, paket BRONZE, bukan master.
+- Master tetap `arsatazmi12@gmail.com` (daftar dengan email itu untuk akses /admin).
 
 VERIFIKASI LIVE
 ---------------
