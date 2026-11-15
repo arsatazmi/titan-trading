@@ -1,85 +1,1108 @@
-<!doctype html>
-<html lang="id">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<meta name="theme-color" content="#103b2b"/>
-<title>TitanTrading — Portal Demo</title><link rel="stylesheet" href="/styles.css"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0D331D">
+  <title>Titan Vault - Account Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bgNude: '#FBECE1', cardCream: '#FAF5EE', cardBorder: 'rgba(13, 51, 29, 0.08)',
+            forest: '#0D331D', forestHover: '#134729', forestDark: '#071F11',
+            mutedText: '#7A8C80', bronzeBg: '#EEDCD0', bronzeText: '#8A5237',
+            activeBg: '#E3EBDC', activeText: '#3B6B2B', softBorder: '#E8DED5'
+          },
+          fontFamily: { serif: ['Newsreader', 'serif'], sans: ['Plus Jakarta Sans', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <script src="/backend.js"></script>
+  <style>
+    body {
+      background-color: #FBECE1;
+      color: #0D331D;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    .glass-toast {
+      background: rgba(250, 245, 238, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(13, 51, 29, 0.12);
+      box-shadow: 0 8px 32px 0 rgba(13, 51, 29, 0.08);
+    }
+    .plan-card-unselected {
+      background: #FAF5EE;
+      color: #0D331D;
+      border: 1px solid rgba(13, 51, 29, 0.08);
+      border-radius: 20px;
+      transition: all 0.25s ease;
+    }
+    .plan-card-selected {
+      background: #0D331D !important;
+      color: #FAF5EE !important;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      box-shadow: 0 10px 25px -5px rgba(13, 51, 29, 0.3);
+      transition: all 0.25s ease;
+    }
+    .plan-card-selected .plan-title,
+    .plan-card-selected .plan-price,
+    .plan-card-selected .plan-desc,
+    .plan-card-selected li { color: #FAF5EE !important; }
+    .glass-card {
+      background: #FAF5EE;
+      border: 1px solid rgba(13, 51, 29, 0.08);
+      border-radius: 20px;
+    }
+    .input-field {
+      background: #FAF5EE;
+      border: 1px solid rgba(13, 51, 29, 0.15);
+      border-radius: 12px;
+      color: #0D331D;
+      transition: all 0.2s ease;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #0D331D;
+      box-shadow: 0 0 0 3px rgba(13, 51, 29, 0.08);
+    }
+    .glass-btn {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      color: #FAF5EE;
+      transition: all 0.25s ease;
+    }
+    .glass-btn:hover { background: rgba(255, 255, 255, 0.22); }
+    .payment-sub-card {
+      background: #FAF5EE;
+      border: 1px solid rgba(13, 51, 29, 0.1);
+      border-radius: 16px;
+      padding: 16px;
+      transition: all 0.2s ease;
+    }
+    .modal-backdrop {
+      background: rgba(13, 51, 29, 0.4);
+      backdrop-filter: blur(4px);
+    }
+
+    /* ---- Titan Vault theme overrides (re-map legacy dark utility classes) ---- */
+    [class*="bg-cardDark"], [class*="bg-slate-900"], [class*="bg-slate-800"],
+    [class*="bg-slate-700"] { background-color: #FAF5EE !important; }
+    [class*="bg-slate-800/80"] { background-color: #F3E7DC !important; }
+    [class*="border-cardBorder"], [class*="border-slate-700"],
+    [class*="border-slate-800"] { border-color: rgba(13, 51, 29, 0.08) !important; }
+    [class*="text-white"], [class*="text-slate-200"], [class*="text-slate-300"] { color: #0D331D !important; }
+    [class*="text-slate-400"], [class*="text-slate-500"], .text-mutedText { color: #7A8C80 !important; }
+    [class*="text-sky-400"], [class*="text-sky-300"] { color: #8A5237 !important; }
+    [class*="bg-sky-600"], [class*="bg-sky-500"] { background-color: #0D331D !important; }
+    [class*="hover:bg-sky-500"]:hover { background-color: #134729 !important; }
+    [class*="bg-sky-950"] { background-color: #E3EBDC !important; }
+    [class*="bg-sky-950"][class*="text-sky-400"] { color: #3B6B2B !important; }
+    [class*="border-sky-800/50"] { border-color: #BFD4B0 !important; }
+    [class*="bg-sky-400"] { background-color: #3B6B2B !important; }
+    [class*="bg-amber-950/80"] { background-color: #FDE8C8 !important; }
+    [class*="text-amber-400"] { color: #92400E !important; }
+    [class*="border-amber-800/50"] { border-color: #F3D9A4 !important; }
+    [class*="bg-rose-600"] { background-color: #3B1919 !important; }
+    [class*="hover:bg-rose-500"]:hover { background-color: #4E2222 !important; }
+    [class*="text-rose-400"] { color: #B91C1C !important; }
+    [class*="bg-slate-500"] { background-color: #A8B5AC !important; }
+    [class*="shadow-sky-900/20"] { box-shadow: none !important; }
+    [class*="cursor-not-allowed"] { background-color: #A8A29E !important; color: #FAF5EE !important; }
+    [id^="check-"] { background-color: #FAF5EE !important; color: #0D331D !important; }
+
+    /* Light text on dark controls */
+    button[class*="bg-sky-600"], button[class*="bg-sky-500"], button[class*="bg-rose-600"],
+    [class*="bg-sky-600"][class*="text-white"], [class*="bg-sky-500"][class*="text-white"],
+    [class*="bg-rose-600"][class*="text-white"], a[style*="25D366"],
+    button[class*="bg-sky-600"] *, button[class*="bg-sky-500"] *,
+    button[class*="bg-rose-600"] * { color: #FAF5EE !important; }
+
+    /* Dark green header */
+    header[class*="bg-forestDark"] { background-color: #0D331D !important; border-color: rgba(255,255,255,.12) !important; }
+    header[class*="bg-forestDark"], header[class*="bg-forestDark"] * { color: #FAF5EE !important; }
+    header[class*="bg-forestDark"] [class*="bg-slate-800"] { background-color: #1F4A30 !important; }
+    header[class*="bg-forestDark"] [class*="bg-sky-600"] { background-color: #1F4A30 !important; }
+    header[class*="bg-forestDark"] .glass-btn { background: rgba(255,255,255,.12) !important; border-color: rgba(255,255,255,.22) !important; }
+    header[class*="bg-forestDark"] [class*="hover:bg-slate-800"]:hover { background-color: #1F4A30 !important; }
+  </style>
 </head>
-<body class="landing-page">
-<header class="topbar"><div class="wrap topbar-in">
-  <a class="brand" href="/" aria-label="Titan Trading beranda"><span class="mark">T</span><span class="brand-name">TITAN<small>TRADING PORTAL</small></span></a>
-  <nav class="nav" aria-label="Navigasi utama"><a href="#paket">Paket</a><a href="#cara">Cara kerja</a><a class="nav-link-cta" href="#masuk">Masuk <span aria-hidden="true">↗</span></a></nav>
-</div></header>
-<main>
-  <section class="auth-section wrap" id="masuk">
-    <div class="auth-copy">
-      <span class="eyebrow"><span class="status-dot"></span> PORTAL DEMO</span>
-      <h1>Semua dalam<br/>satu <em>tempat.</em></h1>
-      <p class="lead">Kelola akun, paket, dan simulasi bot trading dalam satu dashboard yang lebih sederhana.</p>
-      <div class="auth-rule"></div>
-      <p class="auth-footnote"><span class="mini-icon">↗</span><span>Ruang untuk memantau.<br/><strong>Bukan koneksi trading nyata.</strong></span></p>
-    </div>
-    <div class="auth-card card card-pad">
-      <div class="auth-head"><span class="section-kicker">SELAMAT DATANG</span><h2>Masuk ke akun</h2><p class="muted">Senang melihatmu kembali.</p></div>
-      <div class="tabs auth-tabs" role="group" aria-label="Pilih masuk atau daftar">
-        <button type="button" id="tabLogin" class="active">Masuk</button><button type="button" id="tabRegister">Buat akun</button>
+<body class="min-h-screen flex flex-col">
+
+  <!-- ================= AUTH CONTAINER ================= -->
+  <div id="auth-section" class="flex-1 flex items-center justify-center p-4 sm:p-6">
+    <div class="w-full max-w-sm bg-cardDark rounded-[24px] p-6 sm:p-8 border border-cardBorder shadow-2xl">
+      
+      <!-- LOGIN FORM -->
+      <div id="login-box" class="space-y-5">
+        <div>
+          <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white mb-1">Welcome back</h2>
+          <p class="text-xs sm:text-sm text-mutedText">Log in to your account.</p>
+        </div>
+
+        <button onclick="handleGoogleSignIn()" class="w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 transition flex items-center justify-center gap-2.5 text-xs sm:text-sm font-medium text-slate-200 shadow-sm">
+          <svg class="w-4 h-4" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <div class="flex items-center my-3">
+          <div class="flex-1 border-t border-slate-800"></div>
+          <span class="px-3 text-[11px] text-slate-500 uppercase tracking-wider">Or</span>
+          <div class="flex-1 border-t border-slate-800"></div>
+        </div>
+
+        <form onsubmit="handleEmailLogin(event)" class="space-y-3.5">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Email</label>
+            <input type="email" id="login-email" required class="w-full px-3.5 py-2.5 input-field text-xs sm:text-sm" placeholder="you@example.com">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Password</label>
+            <input type="password" id="login-password" required class="w-full px-3.5 py-2.5 input-field text-xs sm:text-sm" placeholder="••••••••">
+          </div>
+          <button type="submit" class="w-full py-3 px-4 bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-sky-900/20">
+            Sign In
+          </button>
+        </form>
+
+        <p class="text-xs text-center text-mutedText pt-2">
+          Don't have an account? <a href="#" onclick="toggleAuthMode('register')" class="text-sky-400 hover:text-sky-300 font-semibold underline">Create account</a>
+        </p>
       </div>
-      <form id="loginForm">
-        <label for="loginEmail">Email atau username</label><input id="loginEmail" type="text" autocomplete="username" required placeholder="Email atau username"/>
-        <label for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Masukkan password"/>
-        <button class="btn btn-gold auth-submit" type="submit">Masuk <span aria-hidden="true">↗</span></button>
-      </form>
-      <form id="registerForm" class="hidden">
-        <label for="regName">Nama lengkap</label><input id="regName" autocomplete="name" required minlength="2" placeholder="Nama kamu"/>
-        <label for="regEmail">Email</label><input id="regEmail" type="email" autocomplete="email" required placeholder="nama@email.com"/>
-        <label for="regPassword">Password <span class="muted">(min. 10 karakter)</span></label><input id="regPassword" type="password" autocomplete="new-password" required minlength="10" placeholder="Buat password"/>
-        <button class="btn btn-gold auth-submit" type="submit">Buat akun <span aria-hidden="true">↗</span></button>
-      </form>
-      <div class="auth-demo-note"><span class="status-dot"></span><span>Ini adalah portal simulasi. Jangan gunakan kredensial broker asli.</span></div>
-      <details class="demo-credentials"><summary>Gunakan akun demo</summary><p>Klien: <span class="mono">client@titantrading.demo</span><br/>Password: <span class="mono">TitanClient!2026</span></p><p>Admin: <span class="mono">admin@titantrading.demo</span><br/>Password: <span class="mono">TitanAdmin!2026</span></p></details>
+
+      <!-- REGISTER FORM -->
+      <div id="register-box" class="space-y-5 hidden">
+        <div>
+          <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-white mb-1">Create account</h2>
+          <p class="text-xs sm:text-sm text-mutedText">Sign up to get started.</p>
+        </div>
+
+        <button onclick="handleGoogleSignIn()" class="w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 transition flex items-center justify-center gap-2.5 text-xs sm:text-sm font-medium text-slate-200 shadow-sm">
+          <svg class="w-4 h-4" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <div class="flex items-center my-3">
+          <div class="flex-1 border-t border-slate-800"></div>
+          <span class="px-3 text-[11px] text-slate-500 uppercase tracking-wider">Or</span>
+          <div class="flex-1 border-t border-slate-800"></div>
+        </div>
+
+        <form onsubmit="handleEmailRegister(event)" class="space-y-3.5">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Full Name</label>
+            <input type="text" id="register-name" required class="w-full px-3.5 py-2.5 input-field text-xs sm:text-sm" placeholder="Venom Bonaparte">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Email</label>
+            <input type="email" id="register-email" required class="w-full px-3.5 py-2.5 input-field text-xs sm:text-sm" placeholder="you@example.com">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Password</label>
+            <input type="password" id="register-password" required class="w-full px-3.5 py-2.5 input-field text-xs sm:text-sm" placeholder="••••••••">
+          </div>
+          <button type="submit" class="w-full py-3 px-4 bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs sm:text-sm rounded-xl transition shadow-lg shadow-sky-900/20">
+            Register Account
+          </button>
+        </form>
+
+        <p class="text-xs text-center text-mutedText pt-2">
+          Already have an account? <a href="#" onclick="toggleAuthMode('login')" class="text-sky-400 hover:text-sky-300 font-semibold underline">Sign in</a>
+        </p>
+      </div>
+
     </div>
-  </section>
-  <section class="section wrap" id="paket"><div class="section-top"><div><span class="section-kicker">PILIHAN UNTUKMU</span><h2>Paket langganan</h2></div><p class="muted">Pilih paket simulasi yang sesuai kebutuhanmu.</p></div><div id="plans" class="grid3 mt"><p class="muted">Memuat paket…</p></div></section>
-  <section class="section wrap" id="cara"><div class="section-top"><div><span class="section-kicker">MULAI DARI SINI</span><h2>Sederhana, dari awal.</h2></div></div><div class="grid3 mt steps">
-    <div class="card card-pad"><span class="step-no">01</span><h3>Buat akun</h3><p class="muted small">Daftar dan pilih paket demo yang ingin kamu coba.</p></div>
-    <div class="card card-pad"><span class="step-no">02</span><h3>Konfirmasi</h3><p class="muted small">Kirim referensi pembayaran simulasi untuk ditinjau admin.</p></div>
-    <div class="card card-pad"><span class="step-no">03</span><h3>Mulai simulasi</h3><p class="muted small">Tambahkan akun demo dan jelajahi dashboard.</p></div>
-  </div></section>
-</main>
-<footer class="footer"><div class="wrap footer-inner"><span><strong>TITAN</strong> <span class="muted">/ trading portal</span></span><span>Hanya simulasi. Bukan saran investasi.</span></div></footer>
-<div class="toast" role="status" aria-live="polite"></div>
-<script src="/shared.js"></script>
-<script>
-const tabLogin=$('#tabLogin'), tabRegister=$('#tabRegister'), loginForm=$('#loginForm'), registerForm=$('#registerForm');
-function showTab(login){ tabLogin.classList.toggle('active',login); tabRegister.classList.toggle('active',!login); loginForm.classList.toggle('hidden',!login); registerForm.classList.toggle('hidden',login); }
-tabLogin.onclick=()=>showTab(true); tabRegister.onclick=()=>showTab(false);
+  </div>
 
-loginForm.onsubmit=async(e)=>{ e.preventDefault();
-  try{ const d=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:$('#loginEmail').value,password:$('#loginPassword').value})});
-    toast('Berhasil masuk.'); location.href = d.user.role==='admin' ? '/admin' : '/app';
-  }catch(err){ toast(err.message,true); }
-};
-registerForm.onsubmit=async(e)=>{ e.preventDefault();
-  try{ await api('/api/auth/register',{method:'POST',body:JSON.stringify({name:$('#regName').value,email:$('#regEmail').value,password:$('#regPassword').value})});
-    toast('Pendaftaran berhasil.'); location.href='/app';
-  }catch(err){ toast(err.message,true); }
-};
+  <!-- ================= POST-LOGIN USER PORTAL ================= -->
+  <div id="portal-section" class="hidden min-h-screen flex flex-col w-full">
+    
+    <!-- HEADER -->
+    <header class="bg-forestDark border-b border-softBorder text-[#FAF5EE] px-4 py-4 sm:px-8">
+      <div class="max-w-xl mx-auto flex flex-col gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-[#1F4A30] border border-white/20 flex items-center justify-center text-[#FAF5EE] font-serif font-bold text-lg">
+            T
+          </div>
+          <span class="text-xl tracking-wider font-bold text-[#FAF5EE] font-serif">TITAN</span>
+        </div>
 
-(async()=>{
-  try{
-    const d=await api('/api/bootstrap');
-    $('#plans').innerHTML = d.plans.map(p=>`
-      <div class="card card-pad plan ${p.popular?'popular':''}">
-        ${p.popular?'<span class="pill gold">Paling Populer</span>':''}
-        <h3 style="margin:10px 0 4px">${esc(p.name)}</h3>
-        <div class="price">${fmtIDR(p.priceIdr)}<span class="muted small"> / ${p.periodDays} hari</span></div>
-        <div class="muted small mt">${p.accountLimit===0?'Akun broker demo tanpa batas':`Hingga ${p.accountLimit} akun broker demo`}</div>
-        <ul>${(p.features||[]).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>
-        <a class="btn btn-gold mt" href="#masuk" style="text-decoration:none;width:100%">Pilih ${esc(p.name)}</a>
-      </div>`).join('');
-    const u=await me(); if(u) toast(`Kamu masuk sebagai ${u.email} (${u.role}).`);
-  }catch(err){ $('#plans').innerHTML=`<p class="muted">Gagal memuat paket: ${esc(err.message)}</p>`; }
-})();
-</script>
+        <div class="flex items-center gap-2 pt-1 flex-wrap">
+          <button onclick="handleSignOut()" class="glass-btn px-3.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 mr-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Sign out
+          </button>
+
+          <button onclick="switchTab('account')" id="nav-account" class="px-4 py-1.5 rounded-full text-xs font-medium bg-sky-600 text-white transition">
+            My account
+          </button>
+          <button onclick="switchTab('plans')" id="nav-plans" class="px-4 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:bg-slate-800 transition">
+            Plans & Payment
+          </button>
+          <button onclick="location.href='/admin'" id="nav-admin" class="hidden px-4 py-1.5 rounded-full text-xs font-medium text-[#FAF5EE] hover:bg-[#1F4A30]/60 transition">
+            Master
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN BODY -->
+    <main class="flex-1 px-4 py-6 sm:px-6">
+      <div class="max-w-xl mx-auto space-y-6">
+
+        <!-- TAB CONTENT 1: MY ACCOUNT VIEW -->
+        <div id="tab-content-account" class="space-y-6">
+          
+          <div>
+            <div class="text-[11px] font-bold uppercase tracking-widest text-sky-400 mb-1">MY ACCOUNT</div>
+            <h1 class="text-3xl sm:text-4xl text-white font-bold" id="display-user-name">Loading...</h1>
+            
+            <div class="flex items-center gap-2 mt-3">
+              <span id="display-user-plan" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-200 border border-slate-700 uppercase tracking-wider">BRONZE</span>
+              <span id="display-user-status" class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-950/80 text-amber-400 border border-amber-800/50">Payment Pending</span>
+            </div>
+
+            <!-- PAYMENT ALERT BAR IF PENDING -->
+            <div id="payment-pending-alert" class="mt-4 p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-300 space-y-2">
+              <div class="font-medium" id="banner-status-text">Your plan is waiting for payment confirmation. It becomes active as soon as your payment is confirmed.</div>
+              <button onclick="switchTab('plans')" class="mt-2 px-3.5 py-1.5 rounded-full bg-sky-600 hover:bg-sky-500 text-white font-medium text-[11px] transition">Submit Payment Reference</button>
+            </div>
+
+            <button onclick="switchTab('plans')" class="mt-4 px-4 py-2 rounded-2xl border border-slate-700 bg-slate-800/80 text-slate-200 text-xs font-medium hover:bg-slate-700 transition">
+              Change plan
+            </button>
+          </div>
+
+          <!-- Subscription Info Cards -->
+          <div class="space-y-4">
+            <div class="glass-card p-5">
+              <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">CURRENT PLAN</div>
+              <div class="text-2xl text-white font-semibold" id="card-plan-name">Bronze</div>
+              <div class="text-xs text-slate-400 mt-1" id="card-plan-price">$100 per month</div>
+            </div>
+
+            <div class="glass-card p-5">
+              <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">STARTED</div>
+              <div class="text-2xl text-white font-semibold" id="card-started-date">Pending</div>
+            </div>
+
+            <div class="glass-card p-5">
+              <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">NEXT RENEWAL</div>
+              <div class="text-2xl text-white font-semibold" id="card-renewal-date">Pending</div>
+            </div>
+          </div>
+
+          <!-- Broker Accounts Section -->
+          <div class="pt-2 space-y-4">
+            <div class="flex items-center gap-2 text-white">
+              <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
+              <h2 class="text-2xl font-bold text-white">Broker accounts</h2>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Add the MT4 or MT5 account the XAUUSD bot should trade, then start and stop the bot here.
+            </p>
+
+            <button onclick="openAddAccountModal()" class="px-4 py-2.5 rounded-full bg-sky-600 text-white text-xs font-medium hover:bg-sky-500 transition flex items-center gap-2 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Add account
+            </button>
+
+            <!-- Dynamic Container for Broker Account Cards -->
+            <div id="broker-accounts-container" class="space-y-4">
+              <!-- Dynamically populated broker account cards -->
+            </div>
+          </div>
+
+          <!-- Payment History Section -->
+          <div class="pt-2 space-y-3">
+            <div class="flex items-center gap-2 text-white">
+              <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              <h2 class="text-2xl font-bold text-white">Payment history</h2>
+            </div>
+
+            <div id="payment-history-container" class="glass-card p-5 text-xs text-slate-400 space-y-2">
+              No payments recorded yet.
+            </div>
+          </div>
+
+          <!-- Account Details Form -->
+          <div class="pt-2 space-y-4">
+            <h2 class="text-2xl font-bold text-white">Account details</h2>
+
+            <div class="glass-card p-6 space-y-4">
+              <form onsubmit="handleSaveAccountDetails(event)" class="space-y-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 mb-1.5">Account name</label>
+                  <input type="text" id="acc-name" class="w-full px-4 py-2.5 input-field text-xs">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 mb-1.5">Contact name</label>
+                  <input type="text" id="contact-name" class="w-full px-4 py-2.5 input-field text-xs">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 mb-1.5">Phone</label>
+                  <input type="tel" id="acc-phone" class="w-full px-4 py-2.5 input-field text-xs">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 mb-1.5">Email</label>
+                  <input type="email" id="acc-email" class="w-full px-4 py-2.5 input-field text-xs">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 mb-1.5">TID / Payment Proof Notes</label>
+                  <textarea id="acc-notes" rows="3" class="w-full px-4 py-2.5 input-field text-xs" placeholder="Transaction TID or payment confirmation reference"></textarea>
+                </div>
+
+                <button type="submit" class="px-5 py-2.5 rounded-full bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition shadow-sm">
+                  Save details
+                </button>
+              </form>
+            </div>
+          </div>
+
+        </div>
+
+
+        <!-- TAB CONTENT 2: SUBSCRIPTION PLANS & PAYMENT SUBMISSION -->
+        <div id="tab-content-plans" class="space-y-6 hidden">
+          <div>
+            <div class="text-[11px] font-bold uppercase tracking-widest text-sky-400 mb-1">SUBSCRIPTIONS</div>
+            <h1 class="text-3xl sm:text-4xl text-white font-bold">Choose your plan</h1>
+            <p class="text-xs text-slate-400 mt-1">Pick the plan that fits your book of client accounts. You can move up or down at any time.</p>
+          </div>
+
+          <div class="space-y-4">
+            
+            <!-- PRO PLAN CARD -->
+            <div id="plan-card-pro" onclick="selectPlan('pro')" class="plan-card-unselected p-6 space-y-4 relative cursor-pointer">
+              <div class="flex items-center justify-between">
+                <div class="plan-title text-2xl sm:text-3xl font-bold tracking-wide">PRO</div>
+                <div id="check-pro" class="w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center hidden">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                </div>
+              </div>
+              <div class="plan-price text-3xl font-bold">$50 <span class="text-xs font-normal text-slate-400">/month</span></div>
+              <p class="plan-desc text-xs text-slate-400">Start running the XAUUSD bot on 1 broker account.</p>
+              
+              <ul class="text-xs space-y-2.5 pt-1">
+                <li class="flex items-center gap-2.5">
+                  <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  1 broker account limit (MT4 or MT5)
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  Start and stop the XAUUSD bot
+                </li>
+              </ul>
+            </div>
+
+            <!-- BRONZE PLAN CARD -->
+            <div id="plan-card-bronze" onclick="selectPlan('bronze')" class="plan-card-selected p-6 space-y-4 relative cursor-pointer">
+              <div class="flex items-center justify-between">
+                <div class="plan-title text-2xl sm:text-3xl font-bold tracking-wide">BRONZE</div>
+                <div id="check-bronze" class="w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                </div>
+              </div>
+              <div class="plan-price text-3xl font-bold">$100 <span class="text-xs font-normal text-slate-400">/month</span></div>
+              <p class="plan-desc text-xs text-slate-400">Ideal for managing up to 3 client accounts under one setup.</p>
+
+              <ul class="text-xs space-y-2.5 pt-1">
+                <li class="flex items-center gap-2.5">
+                  <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  Up to 3 broker accounts limit
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  Start and stop the bot per account
+                </li>
+              </ul>
+            </div>
+
+            <!-- PLATINUM PLAN CARD -->
+            <div id="plan-card-platinum" onclick="selectPlan('platinum')" class="plan-card-unselected p-6 space-y-4 relative cursor-pointer">
+              <div class="flex items-center justify-between">
+                <div class="plan-title text-2xl sm:text-3xl font-bold tracking-wide">PLATINUM</div>
+                <div id="check-platinum" class="w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center hidden">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                </div>
+              </div>
+              <div class="plan-price text-3xl font-bold">$250 <span class="text-xs font-normal text-slate-400">/month</span></div>
+              <p class="plan-desc text-xs text-slate-400">For traders who want unlimited accounts under the bot.</p>
+
+              <ul class="text-xs space-y-2.5 pt-1">
+                <li class="flex items-center gap-2.5">
+                  <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  Unlimited broker accounts
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  Start and stop the bot per account
+                </li>
+              </ul>
+            </div>
+
+          </div>
+
+          <!-- EXACT HOW TO PAY & SUBMIT PAYMENT PROOF -->
+          <div class="glass-card p-6 space-y-4 mt-6">
+            <h3 class="text-2xl text-white font-bold">How to pay</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">Send the amount to any account below, fill in your payment proof reference, and submit for master confirmation.</p>
+            
+            <div class="payment-sub-card space-y-1">
+              <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span>MTN MOBILE MONEY</span>
+                <button onclick="copyToClipboard('0788087502')" class="text-sky-400 underline font-semibold text-[11px] cursor-pointer">Copy</button>
+              </div>
+              <div class="text-base font-semibold text-white">0788087502</div>
+              <div class="text-xs text-slate-400">Nakasiita Shakirah</div>
+            </div>
+
+            <div class="payment-sub-card space-y-1">
+              <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span>AIRTEL MONEY</span>
+                <button onclick="copyToClipboard('0743453912')" class="text-sky-400 underline font-semibold text-[11px] cursor-pointer">Copy</button>
+              </div>
+              <div class="text-base font-semibold text-white">0743453912</div>
+              <div class="text-xs text-slate-400">Nakalema Sumayah</div>
+            </div>
+
+            <div class="payment-sub-card space-y-1">
+              <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span>BINANCE — USDT (TRC20)</span>
+                <button onclick="copyToClipboard('TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz')" class="text-sky-400 underline font-semibold text-[11px] cursor-pointer">Copy</button>
+              </div>
+              <div class="text-xs font-mono font-semibold text-white break-all">TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz</div>
+              <div class="text-xs text-slate-400">USDT TRC20 wallet</div>
+            </div>
+
+            <!-- PAYMENT SUBMISSION INPUT FIELDS -->
+            <div class="pt-4 space-y-3 border-t border-slate-800">
+              <h4 class="text-lg font-semibold text-white">Submit Payment Confirmation Details</h4>
+              
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Payment Method Used</label>
+                <select id="pay-method-select" onchange="togglePayMethodInput()" class="w-full px-3.5 py-2.5 input-field text-xs bg-slate-900">
+                  <option value="phone">Mobile Money Phone Number</option>
+                  <option value="crypto">Binance Account / Wallet Email</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1" id="pay-sender-label">Sender Phone Number</label>
+                <input type="text" id="pay-sender-identifier" required class="w-full px-3.5 py-2.5 input-field text-xs" placeholder="e.g. 0780000000">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Contact Name</label>
+                <input type="text" id="pay-contact-name" required class="w-full px-3.5 py-2.5 input-field text-xs" placeholder="Your full name">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Transaction ID (TID) / Confirmation Ref</label>
+                <input type="text" id="pay-tid-ref" required class="w-full px-3.5 py-2.5 input-field text-xs" placeholder="e.g. 18273645920 or TxHash">
+              </div>
+
+              <button id="plan-checkout-btn" onclick="submitSubscriptionRequest()" class="w-full py-3 px-4 rounded-full bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition shadow-sm mt-2">
+                Submit Payment for Bronze — $100
+              </button>
+              
+              <br>
+              <br>
+              <a href="https://wa.me/256743453912" style="background-color: #25D366" class="w-full py-3 px-4 rounded-full inline-block text-center text-white text-xs font-medium transition shadow-sm mt-2">
+                Submit Sreenshot via whatsapp
+              </a>   
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+
+  <!-- ================= EDIT / ADD BROKER ACCOUNT MODAL ================= -->
+  <div id="broker-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="bg-cardDark rounded-[24px] p-6 sm:p-8 w-full max-w-lg border border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto space-y-5">
+      <div class="flex items-center justify-between">
+        <h3 class="text-2xl text-white font-bold" id="broker-modal-title">Edit broker account</h3>
+        <button onclick="closeBrokerModal()" class="text-slate-400 hover:text-white text-xl font-bold px-2">×</button>
+      </div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        These are the trading credentials the XAUUSD bot uses. Only you and the Titan team can see them.
+      </p>
+
+      <form onsubmit="handleSaveBrokerModal(event)" class="space-y-4">
+        <input type="hidden" id="modal-account-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Account name</label>
+          <input type="text" id="modal-acc-name" required class="w-full px-4 py-2.5 input-field text-xs" placeholder="e.g. Venom">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Broker</label>
+          <input type="text" id="modal-broker" required class="w-full px-4 py-2.5 input-field text-xs" placeholder="e.g. Exnessmt5real27">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Platform</label>
+          <select id="modal-platform" class="w-full px-4 py-2.5 input-field text-xs bg-slate-900">
+            <option value="MT5">MT5</option>
+            <option value="MT4">MT4</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Server</label>
+          <input type="text" id="modal-server" required class="w-full px-4 py-2.5 input-field text-xs" placeholder="e.g. Exness real5">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Login / account number</label>
+          <input type="text" id="modal-login" required class="w-full px-4 py-2.5 input-field text-xs" placeholder="e.g. 11536363">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
+          <input type="password" id="modal-password" required class="w-full px-4 py-2.5 input-field text-xs" placeholder="••••••••">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Notes</label>
+          <textarea id="modal-notes" rows="3" class="w-full px-4 py-2.5 input-field text-xs" placeholder="Lot size, risk settings, anything the team should know"></textarea>
+        </div>
+
+        <div class="flex items-center gap-3 pt-2">
+          <button type="button" onclick="closeBrokerModal()" class="flex-1 py-3 px-4 rounded-full border border-slate-700 bg-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-700 transition">
+            Cancel
+          </button>
+          <button type="submit" class="flex-1 py-3 px-4 rounded-full bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition shadow-sm">
+            Save changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ================= TOAST NOTIFICATION POPUP ================= -->
+  <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-4">
+    <div class="glass-toast rounded-2xl px-4 py-3 flex items-center gap-3 min-w-[240px] max-w-sm">
+      <div id="toast-icon-bg" class="w-6 h-6 rounded-full bg-sky-600 text-white flex items-center justify-center shrink-0">
+        <svg id="toast-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+      </div>
+      <span id="toast-message" class="text-xs font-medium text-slate-200 leading-snug">Action completed</span>
+    </div>
+  </div>
+
+
+  <!-- ================= APPLICATION SCRIPT ================= -->
+  <script>
+    let currentUserPlan = 'bronze';
+    let currentAccounts = {};
+    let toastTimeout = null;
+    let currentUid = null;
+    let visiblePasswords = {};
+    let masterAccountActive = true;
+
+    function toggleAuthMode(mode) {
+      const loginBox = document.getElementById('login-box');
+      const registerBox = document.getElementById('register-box');
+      if (mode === 'register') {
+        loginBox.classList.add('hidden');
+        registerBox.classList.remove('hidden');
+      } else {
+        registerBox.classList.add('hidden');
+        loginBox.classList.remove('hidden');
+      }
+    }
+
+    function switchTab(tab) {
+      const accountContent = document.getElementById('tab-content-account');
+      const plansContent = document.getElementById('tab-content-plans');
+      const navAccount = document.getElementById('nav-account');
+      const navPlans = document.getElementById('nav-plans');
+
+      if (tab === 'account') {
+        accountContent.classList.remove('hidden');
+        plansContent.classList.add('hidden');
+        navAccount.className = "px-4 py-1.5 rounded-full text-xs font-medium bg-sky-600 text-white transition";
+        navPlans.className = "px-4 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:bg-slate-800 transition";
+      } else {
+        plansContent.classList.remove('hidden');
+        accountContent.classList.add('hidden');
+        navPlans.className = "px-4 py-1.5 rounded-full text-xs font-medium bg-sky-600 text-white transition";
+        navAccount.className = "px-4 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:bg-slate-800 transition";
+      }
+    }
+
+    function esc(value) {
+      return String(value === null || value === undefined ? '' : value)
+        .replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function selectPlan(planKey) {
+      currentUserPlan = planKey;
+      const cards = ['pro', 'bronze', 'platinum'];
+      const btn = document.getElementById('plan-checkout-btn');
+
+      cards.forEach(key => {
+        const card = document.getElementById(`plan-card-${key}`);
+        const checkBadge = document.getElementById(`check-${key}`);
+
+        if (key === planKey) {
+          card.className = "plan-card-selected p-6 space-y-4 relative cursor-pointer";
+          if (checkBadge) checkBadge.classList.remove('hidden');
+        } else {
+          card.className = "plan-card-unselected p-6 space-y-4 relative cursor-pointer";
+          if (checkBadge) checkBadge.classList.add('hidden');
+        }
+      });
+
+      if (planKey === 'pro') btn.innerText = 'Submit Payment for Pro — $50';
+      if (planKey === 'bronze') btn.innerText = 'Submit Payment for Bronze — $100';
+      if (planKey === 'platinum') btn.innerText = 'Submit Payment for Platinum — $250';
+    }
+
+    function togglePayMethodInput() {
+      const method = document.getElementById('pay-method-select').value;
+      const label = document.getElementById('pay-sender-label');
+      const input = document.getElementById('pay-sender-identifier');
+      if (method === 'phone') {
+        label.innerText = 'Sender Phone Number';
+        input.placeholder = 'e.g. 0780000000';
+      } else {
+        label.innerText = 'Sender Binance Wallet / Email';
+        input.placeholder = 'e.g. binance@example.com / Wallet ID';
+      }
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text);
+      showToast("Copied to clipboard!");
+    }
+
+    function handleGeneralAuthError() {
+      showToast("An authentication error occurred. Please try again.", false);
+    }
+
+    function submitSubscriptionRequest() {
+      if (!currentUid) return;
+      const prices = { pro: 50, bronze: 100, platinum: 250 };
+      const amount = prices[currentUserPlan] || 100;
+
+      const method = document.getElementById('pay-method-select').value;
+      const sender = document.getElementById('pay-sender-identifier').value.trim();
+      const contact = document.getElementById('pay-contact-name').value.trim();
+      const tid = document.getElementById('pay-tid-ref').value.trim();
+
+      if (!sender || !contact || !tid) {
+        showToast("Please fill in sender detail, contact name, and TID reference", false);
+        return;
+      }
+
+      window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, 'users/' + currentUid), {
+        plan: currentUserPlan,
+        status: 'pending',
+        contactName: contact,
+        phone: sender,
+        notes: `TID: ${tid} | Method: ${method}`
+      });
+
+      const paymentRef = window.rtdbMethods.ref(window.firebaseDb, 'users/' + currentUid + '/payments');
+      const newPaymentRef = window.rtdbMethods.push(paymentRef);
+      window.rtdbMethods.set(newPaymentRef, {
+        plan: currentUserPlan,
+        amount: amount,
+        date: new Date().toISOString(),
+        status: 'pending',
+        method: method,
+        senderIdentifier: sender,
+        contactName: contact,
+        tid: tid
+      });
+
+      showToast(`Payment reference for ${currentUserPlan.toUpperCase()} submitted! Awaiting master approval.`);
+      switchTab('account');
+    }
+
+    function showToast(message, isSuccess = true) {
+      const container = document.getElementById('toast-container');
+      const msgElem = document.getElementById('toast-message');
+      const iconBg = document.getElementById('toast-icon-bg');
+      const icon = document.getElementById('toast-icon');
+
+      msgElem.innerText = message;
+
+      if (isSuccess) {
+        iconBg.className = "w-6 h-6 rounded-full bg-sky-600 text-white flex items-center justify-center shrink-0";
+        icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>`;
+      } else {
+        iconBg.className = "w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center shrink-0";
+        icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>`;
+      }
+
+      container.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+      container.classList.add('opacity-100', 'translate-y-0');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        container.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+        container.classList.remove('opacity-100', 'translate-y-0');
+      }, 3000);
+    }
+
+    function openAddAccountModal() {
+      const accountIds = Object.keys(currentAccounts);
+      let limit = 1;
+      if (currentUserPlan === 'bronze') limit = 3;
+      if (currentUserPlan === 'platinum') limit = 999999;
+
+      if (accountIds.length >= limit) {
+        showToast(`Account limit reached for ${currentUserPlan.toUpperCase()} plan (${limit} max). Upgrade plan to add more.`, false);
+        return;
+      }
+
+      document.getElementById('broker-modal-title').innerText = "Add broker account";
+      document.getElementById('modal-account-id').value = "";
+      document.getElementById('modal-acc-name').value = "";
+      document.getElementById('modal-broker').value = "";
+      document.getElementById('modal-platform').value = "MT5";
+      document.getElementById('modal-server').value = "";
+      document.getElementById('modal-login').value = "";
+      document.getElementById('modal-password').value = "";
+      document.getElementById('modal-notes').value = "";
+      document.getElementById('broker-modal').classList.remove('hidden');
+    }
+
+    function openEditAccountModal(accId) {
+      const acc = currentAccounts[accId];
+      if (!acc) return;
+
+      document.getElementById('broker-modal-title').innerText = "Edit broker account";
+      document.getElementById('modal-account-id').value = accId;
+      document.getElementById('modal-acc-name').value = acc.name || "";
+      document.getElementById('modal-broker').value = acc.broker || "";
+      document.getElementById('modal-platform').value = acc.platform || "MT5";
+      document.getElementById('modal-server').value = acc.server || "";
+      document.getElementById('modal-login').value = acc.login || "";
+      document.getElementById('modal-password').value = acc.password || "";
+      document.getElementById('modal-notes').value = acc.notes || "";
+      document.getElementById('broker-modal').classList.remove('hidden');
+    }
+
+    function closeBrokerModal() {
+      document.getElementById('broker-modal').classList.add('hidden');
+    }
+
+    function handleSaveBrokerModal(e) {
+      e.preventDefault();
+      if (!currentUid) return;
+
+      const accId = document.getElementById('modal-account-id').value;
+      const accData = {
+        name: document.getElementById('modal-acc-name').value,
+        broker: document.getElementById('modal-broker').value,
+        platform: document.getElementById('modal-platform').value,
+        server: document.getElementById('modal-server').value,
+        login: document.getElementById('modal-login').value,
+        password: document.getElementById('modal-password').value,
+        notes: document.getElementById('modal-notes').value,
+        botRunning: false
+      };
+
+      if (accId) {
+        if (currentAccounts[accId] && currentAccounts[accId].botRunning !== undefined) {
+          accData.botRunning = currentAccounts[accId].botRunning;
+        }
+        window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts/${accId}`), accData);
+        showToast("Broker account updated successfully");
+      } else {
+        const newRef = window.rtdbMethods.push(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts`));
+        window.rtdbMethods.set(newRef, accData);
+        showToast("New broker account added successfully");
+      }
+
+      closeBrokerModal();
+    }
+
+    function deleteAccount(accId) {
+      if (confirm("Do you confirm to delete this account?")) {
+        window.rtdbMethods.remove(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts/${accId}`))
+          .then(() => showToast("Account deleted successfully"))
+          .catch(err => showToast(err.message || "Authentication failed", false));
+      }
+    }
+
+    function toggleAccountBot(accId, currentState) {
+      if (!currentUid || !masterAccountActive) return;
+      const newState = !currentState;
+      window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts/${accId}`), {
+        botRunning: newState
+      });
+      showToast(newState ? "Bot started for account" : "Bot stopped for account");
+    }
+
+    function toggleAccountPassword(accId) {
+      visiblePasswords[accId] = !visiblePasswords[accId];
+      renderAccountsList(currentAccounts);
+    }
+
+    function handleSaveAccountDetails(e) {
+      e.preventDefault();
+      if (!currentUid) return;
+      window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, 'users/' + currentUid), {
+        name: document.getElementById('acc-name').value,
+        contactName: document.getElementById('contact-name').value,
+        phone: document.getElementById('acc-phone').value,
+        notes: document.getElementById('acc-notes').value
+      });
+      showToast("Account details updated");
+    }
+
+    window.listenToUserData = function(user) {
+      currentUid = user.uid;
+      document.getElementById('auth-section').classList.add('hidden');
+      document.getElementById('portal-section').classList.remove('hidden');
+
+      const userRef = window.rtdbMethods.ref(window.firebaseDb, 'users/' + user.uid);
+      window.rtdbMethods.onValue(userRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          currentUserPlan = (data.plan || 'bronze').toLowerCase();
+          masterAccountActive = (data.status === 'active');
+
+          document.getElementById('display-user-name').innerText = data.name || user.email;
+          document.getElementById('display-user-plan').innerText = currentUserPlan.toUpperCase();
+          document.getElementById('card-plan-name').innerText = currentUserPlan.toUpperCase();
+          
+          document.getElementById('acc-name').value = data.name || "";
+          document.getElementById('contact-name').value = data.contactName || data.name || "";
+          document.getElementById('acc-phone').value = data.phone || "";
+          document.getElementById('acc-email').value = user.email || "";
+          document.getElementById('acc-notes').value = data.notes || "";
+
+          const prices = { pro: '$50 per month', bronze: '$100 per month', platinum: '$250 per month' };
+          document.getElementById('card-plan-price').innerText = prices[currentUserPlan] || '$100 per month';
+
+          const statusElem = document.getElementById('display-user-status');
+          const alertBox = document.getElementById('payment-pending-alert');
+
+          if (masterAccountActive) {
+            statusElem.className = "px-3 py-1 rounded-full text-xs font-semibold bg-sky-950 text-sky-400 border border-sky-800/50";
+            statusElem.innerText = "Active";
+            alertBox.classList.add('hidden');
+          } else {
+            statusElem.className = "px-3 py-1 rounded-full text-xs font-semibold bg-amber-950/80 text-amber-400 border border-amber-800/50";
+            statusElem.innerText = "Payment Pending / Deactivated";
+            alertBox.classList.remove('hidden');
+            
+            if (data.accounts) {
+              Object.keys(data.accounts).forEach(accId => {
+                if (data.accounts[accId].botRunning) {
+                  window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts/${accId}`), {
+                    botRunning: false
+                  });
+                }
+              });
+            }
+          }
+
+          if (data.startedDate) {
+            document.getElementById('card-started-date').innerText = new Date(data.startedDate).toLocaleString();
+          } else {
+            document.getElementById('card-started-date').innerText = "Pending";
+          }
+
+          if (data.renewalDate) {
+            document.getElementById('card-renewal-date').innerText = new Date(data.renewalDate).toLocaleString();
+          } else {
+            document.getElementById('card-renewal-date').innerText = "Pending";
+          }
+
+          currentAccounts = data.accounts || {};
+          renderAccountsList(currentAccounts);
+          renderPaymentHistory(data.payments || {}, currentUserPlan);
+        } else {
+          window.rtdbMethods.set(userRef, {
+            email: user.email,
+            name: user.displayName || user.email.split('@')[0],
+            plan: 'bronze',
+            status: 'pending',
+            createdAt: new Date().toISOString()
+          });
+        }
+      });
+    };
+
+    function renderAccountsList(accounts) {
+      const container = document.getElementById('broker-accounts-container');
+      container.innerHTML = '';
+      const keys = Object.keys(accounts);
+
+      if (keys.length === 0) {
+        container.innerHTML = `<div class="glass-card p-5 text-xs text-slate-400">No broker accounts added yet. Click "Add account" above.</div>`;
+        return;
+      }
+
+      keys.forEach(accId => {
+        const acc = accounts[accId];
+        const isRunning = masterAccountActive && !!acc.botRunning;
+        const showPwd = !!visiblePasswords[accId];
+
+        const card = document.createElement('div');
+        card.className = "glass-card p-6 space-y-4";
+        card.innerHTML = `
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl text-white font-bold">${esc(acc.name || 'Account')}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">${esc(acc.platform || 'MT5')}</span>
+            </div>
+            
+            <div class="px-3 py-1 rounded-full text-xs font-medium ${isRunning ? 'bg-sky-950 text-sky-400 border border-sky-800/50' : 'bg-slate-800 text-slate-400'} flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full ${isRunning ? 'bg-sky-400 animate-pulse' : 'bg-slate-500'}"></span>
+              <span>${isRunning ? 'Bot running' : 'Bot stopped'}</span>
+            </div>
+          </div>
+
+          <div class="text-xs text-slate-400">
+            ${esc(acc.broker || 'Broker')} · ${esc(acc.server || 'Server')}
+          </div>
+
+          <div class="flex items-center gap-4 py-1">
+            <button onclick="openEditAccountModal('${accId}')" class="text-slate-400 hover:text-white" title="Edit account">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 210.3H3v-3.572L16.732 3.732z"/></svg>
+            </button>
+            <button onclick="deleteAccount('${accId}')" class="text-rose-400/80 hover:text-rose-400" title="Delete account">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+
+          <div class="space-y-3 pt-2 text-xs">
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">SERVER</div>
+              <div class="text-slate-200 font-medium mt-0.5">${esc(acc.server || '--')}</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">LOGIN</div>
+              <div class="text-slate-200 font-medium mt-0.5">${esc(acc.login || '--')}</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">PASSWORD</div>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-slate-200 font-medium tracking-widest">${showPwd ? esc(acc.password || '') : '••••••••'}</span>
+                <button onclick="toggleAccountPassword('${accId}')" class="text-slate-400 hover:text-white">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-3">
+            <button ${!masterAccountActive ? 'disabled title="Account deactivated by Master Dashboard"' : ''} onclick="toggleAccountBot('${accId}', ${isRunning})" class="px-5 py-2.5 rounded-full ${!masterAccountActive ? 'bg-slate-700 cursor-not-allowed opacity-60' : (isRunning ? 'bg-rose-600 hover:bg-rose-500' : 'bg-sky-600 hover:bg-sky-500')} text-white text-xs font-medium transition flex items-center gap-2 shadow-sm">
+              <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">${isRunning ? '<rect x="6" y="6" width="12" height="12" rx="1"/>' : '<path d="M8 5v14l11-7z"/>'}</svg>
+              <span>${!masterAccountActive ? 'Bot stopped (Inactive)' : (isRunning ? 'Stop bot' : 'Start bot')}</span>
+            </button>
+            <div class="text-[11px] text-slate-400 mt-2.5">
+              ${!masterAccountActive ? 'Your account is deactivated or pending master activation. Bot controls are locked.' : `The XAUUSD bot is ${isRunning ? 'running' : 'idle'} on this account.`}
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderPaymentHistory(payments, userCurrentPlan) {
+      const container = document.getElementById('payment-history-container');
+      const keys = Object.keys(payments);
+
+      if (keys.length === 0) {
+        container.innerHTML = `No payments recorded yet.`;
+        return;
+      }
+
+      const prices = { pro: 50, bronze: 100, platinum: 250 };
+
+      container.innerHTML = '';
+      keys.forEach(k => {
+        const p = payments[k];
+        const displayPlan = p.plan || userCurrentPlan || 'bronze';
+        const displayAmount = p.amount || prices[displayPlan.toLowerCase()] || 100;
+
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between border-b border-slate-800 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0";
+        row.innerHTML = `
+          <div>
+            <div class="font-semibold text-slate-200 uppercase">${esc(displayPlan)} — $${esc(displayAmount)}</div>
+            <div class="text-[10px] text-slate-400">${new Date(p.date || Date.now()).toLocaleString()}</div>
+            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Ref: ${esc(p.tid || 'Pending')} (${esc(p.method || 'payment')})</div>
+          </div>
+          <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold ${p.status === 'active' ? 'bg-sky-950 text-sky-400 border border-sky-800/50' : 'bg-amber-950/80 text-amber-400 border border-amber-800/50'}">${esc(p.status || 'pending')}</span>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function handleEmailLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const pass = document.getElementById('login-password').value;
+      window.fbAuthMethods.signInWithEmailAndPassword(window.firebaseAuth, email, pass)
+        .catch(err => showToast(err.message || "Authentication failed", false));
+    }
+
+    function handleEmailRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('register-name').value;
+      const email = document.getElementById('register-email').value;
+      const pass = document.getElementById('register-password').value;
+      window.fbAuthMethods.createUserWithEmailAndPassword(window.firebaseAuth, email, pass, name)
+        .then((cred) => {
+          window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, 'users/' + cred.user.uid), {
+            name: name,
+            email: email
+          });
+        })
+        .catch(err => showToast(err.message || "Authentication failed", false));
+    }
+
+    function handleGoogleSignIn() {
+      window.fbAuthMethods.signInWithPopup(window.firebaseAuth, window.googleProvider)
+        .catch(err => showToast(err.message || "Authentication failed", false));
+    }
+
+    function handleSignOut() {
+      window.fbAuthMethods.signOut(window.firebaseAuth);
+    }
+  </script>
 </body>
-</html>
+              </html>

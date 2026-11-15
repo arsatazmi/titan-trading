@@ -1,9 +1,9 @@
 {
-  "name": "titantrading-demo",
-  "version": "1.0.0",
+  "name": "titan-vault",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "TitanTrading demo portal + admin. Simulated payments and bot controls; no real trading.",
+  "description": "Titan Vault account portal — Supabase Auth + Postgres, master dashboard, broker accounts and payment confirmation.",
   "scripts": {
     "start": "node server.mjs",
     "smoke": "node scripts/smoke.mjs"

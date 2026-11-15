@@ -1,72 +1,71 @@
-# Adaptasi Vercel + Supabase
+# Titan Vault — Account Portal
 
-Lihat [DEPLOY.md](DEPLOY.md) untuk status, batasan, dan langkah deploy.
-Source tetap demo; dokumentasi lokal di bawah masih berlaku tanpa environment Supabase.
+Portal akun satu halaman dengan autentikasi sungguhan, paket langganan USD, konfirmasi
+pembayaran, akun broker MT4/MT5, dan dashboard master. Data tersimpan di Supabase
+(Postgres + Supabase Auth); tidak ada data contoh, tidak ada simulasi.
 
-# TitanTrading — Portal Demo (Klien + Admin)
-
-Portal langganan & kontrol bot **simulasi** dengan gaya fitur portal trading berlangganan:
-daftar/masuk → pilih paket → konfirmasi pembayaran manual → admin menyetujui →
-tambah akun broker demo → start/stop bot simulasi.
-
-> **Mode demo penuh.** Tidak ada trading nyata, tidak ada pembayaran nyata,
-> tidak ada koneksi MT4/MT5. Jangan masukkan password broker asli — hanya ID demo.
-
-## Jalankan
-
-```bash
-cd titantrading
-node server.mjs          # http://localhost:3000
-```
-
-Tidak perlu `npm install` — hanya memakai Node.js bawaan (>= 20).
-
-## Akun demo bawaan
-
-| Role | Email | Password |
-|---|---|---|
-| Admin | `admin@titantrading.demo` | `TitanAdmin!2026` |
-| Klien (Pro aktif) | `client@titantrading.demo` | `TitanClient!2026` |
-| Klien (menunggu bayar) | `pending@titantrading.demo` | `TitanPending!2026` |
-
-Halaman: `/` (beranda + login/daftar + paket), `/app` (dashboard klien), `/admin` (panel admin).
-
-## Uji otomatis
-
-```bash
-npm run smoke
-```
-
-Menjalankan server di port acak dengan database sementara dan memeriksa:
-login, RBAC admin, CSRF, batas akun per paket, blokir bot saat langganan nonaktif,
-alur pembayaran → persetujuan admin → bot bisa jalan, registrasi, dan halaman statis.
+**Produksi:** https://titan-trading-puce.vercel.app
+**Master dashboard:** https://titan-trading-puce.vercel.app/admin
 
 ## Fitur
 
-- **Klien:** profil, status langganan, konfirmasi pembayaran manual (4 metode demo),
-  CRUD akun broker demo (MT4/MT5, tanpa kolom password), start/stop bot simulasi
-  dengan equity/PnL demo, riwayat pembayaran, log aktivitas.
-- **Admin:** statistik, antrian pembayaran (setujui/tolak + alasan), aktivasi/nonaktifkan
-  langganan, suspend/aktifkan pengguna, ubah harga & batas akun paket, log global,
-  reset data demo.
-- **Keamanan:** password di-hash (scrypt), sesi cookie HttpOnly + token CSRF,
-  batas percobaan login, batas akun ditegakkan di server, bot otomatis berhenti
-  saat langganan kedaluwarsa/dinonaktifkan, semua aksi tercatat di log.
+| Bagian | Perilaku |
+| --- | --- |
+| Auth | Daftar / masuk dengan email + password melalui Supabase Auth. Sesi disimpan dalam cookie `HttpOnly`, `SameSite=Lax`, `Secure` di produksi, with refresh-token rotation. |
+| Paket | PRO $50 (1 akun), BRONZE $100 (3 akun), PLATINUM $250 (unlimited). |
+| Pembayaran | MTN Mobile Money `0788087502` / Nakasiita Shakirah, Airtel Money `0743453912` / Nakalema Sumayah, Binance USDT TRC20 `TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz`, WhatsApp `https://wa.me/256743453912`. |
+| Bukti bayar | Klien mengirim metode, identitas pengirim, nama kontak, dan TID. Status masuk `pending` sampai disetujui master. |
+| Akun broker | Tambah / ubah / hapus akun MT4/MT5 (nama, broker, server, login, password, catatan). Password broker dienkripsi AES-256-GCM di database dan hanya didekripsi untuk pemiliknya. |
+| Start / Stop bot | Perintah disimpan sebagai data nyata dan dicatat di audit log. Kontrol terkunci bila status langganan bukan `active`. |
+| Master | `/admin` untuk mengubah paket/status, menyetujui/menolak pembayaran, melihat feed perintah bot dan audit log. Akses hanya untuk email di `ADMIN_EMAILS`. |
 
 ## Struktur
 
 ```
-server.mjs          API + static server (tanpa dependensi)
-lib/store.mjs       Penyimpanan JSON + logika domain (paket, langganan, simulasi)
-public/             index.html, app.html, admin.html, styles.css, shared.js
-scripts/smoke.mjs   Uji end-to-end
-data/               db.json + .secret (dibuat otomatis saat pertama jalan)
+public/index.html          Portal (auth + akun + paket + pembayaran)
+public/backend.js          Bridge API: Supabase Auth/Postgres, bukan Firebase pihak ketiga
+public/admin.html          Master dashboard
+public/auth-callback.html  Penukaran token OAuth
+server.mjs                 API + penyaji statis (dipakai lokal dan di Vercel)
+api/index.js               Vercel function untuk /api
+api/[...path].js           Vercel function untuk /api/:path*
+supabase/schema.sql        Skema produksi (titan_vault_users, titan_vault_events)
+scripts/smoke.mjs          Uji rute statis, config, dan proteksi API
+vercel.json                Konfigurasi Vercel
 ```
 
-## Menuju versi produksi
+## Variabel lingkungan
 
-1. Ganti penyimpanan JSON dengan database nyata (mis. Supabase/Postgres) + migrasi.
-2. Tambah rate-limit persisten, email verifikasi, dan audit log terpisah.
-3. Untuk trading nyata: worker MT5 terpisah dengan kredensial terenkripsi
-   (mis. KMS/vault) — jangan simpan password broker sebagai teks biasa.
-4. Tambahkan pembayaran otomatis (payment gateway) bila diperlukan.
+| Nama | Keterangan |
+| --- | --- |
+| `SUPABASE_URL` | `https://zwiatrbdvetqcjivqomo.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Kunci service role — hanya sisi server, jangan pernah dikirim ke browser |
+| `SUPABASE_ANON_KEY` | Kunci anon untuk endpoint token Supabase Auth |
+| `ADMIN_EMAILS` | Daftar email master dipisah koma (default `arsatazmi12@gmail.com`) |
+| `GOOGLE_OAUTH_ENABLED` | `false` sampai provider Google diaktifkan di Supabase Auth |
+
+Salin `.env.example` ke `.env` untuk menjalankan lokal, lalu:
+
+```bash
+npm run smoke   # uji dasar
+npm start       # http://localhost:3000
+```
+
+## Catatan integrasi
+
+- **Continue with Google** sengaja tidak diaktifkan sampai OAuth Google dikonfigurasi di
+  Supabase (Client ID/Secret + redirect URI). Tombolnya menampilkan pesan jujur, bukan
+  login palsu. Setelah provider aktif, ubah `GOOGLE_OAUTH_ENABLED=true` dan tombol langsung
+  memakai `/auth/v1/authorize` → `/auth-callback.html`.
+- **Eksekusi MT5** berada di worker/bridge yang berjalan pada mesin dengan terminal MT5,
+  bukan di serverless Vercel. Portal mengeluarkan feed perintah nyata di
+  `GET /api/admin/commands` (memerlukan sesi master); worker membaca `running`, `login`,
+  `server`, `platform` dan menghubungkan ke terminal. Kredensial broker tidak dikirim lewat
+  feed ini.
+- Folder `pilot-mt5/` berisi riset bridge HFM dan bukan bagian dari portal web.
+
+## Skema database
+
+`supabase/schema.sql` mendefinisikan dua tabel dengan RLS aktif dan grant hanya untuk
+`service_role`. Browser tidak pernah mengakses database langsung; semua permintaan lewat
+`server.mjs` dengan sesi terverifikasi dan pemeriksaan origin/CSRF.

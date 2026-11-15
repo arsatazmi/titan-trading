@@ -1,220 +1,286 @@
-<!doctype html>
-<html lang="id">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Admin — TitanTrading Demo</title>
-<link rel="stylesheet" href="/styles.css"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0D331D">
+  <title>Titan Vault — Master Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --nude:#FBECE1; --cream:#FAF5EE; --forest:#0D331D; --hover:#134729;
+      --dark:#071F11; --muted:#7A8C80; --bronze:#8A5237; --bronze-bg:#EEDCD0;
+      --active-bg:#E3EBDC; --active:#3B6B2B; --border:rgba(13,51,29,.10);
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--nude); color:var(--forest); font-family:'Plus Jakarta Sans',sans-serif; }
+    header { background:var(--dark); color:var(--cream); padding:18px 28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .mark { width:36px; height:36px; border-radius:50%; background:#1F4A30; border:1px solid rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; font-family:'Newsreader',serif; font-weight:600; font-size:20px; }
+    .brand span { font-family:'Newsreader',serif; font-size:20px; font-weight:600; letter-spacing:.08em; }
+    header a, header button { color:var(--cream); background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); border-radius:999px; padding:8px 16px; font-size:12px; text-decoration:none; cursor:pointer; font-family:inherit; }
+    header a:hover, header button:hover { background:rgba(255,255,255,.22); }
+    main { max-width:1180px; margin:0 auto; padding:32px 20px 64px; }
+    h1 { font-family:'Newsreader',serif; font-size:34px; margin:0 0 6px; }
+    .sub { color:var(--muted); font-size:13px; margin:0 0 28px; }
+    .tabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+    .tab { border:1px solid var(--border); background:var(--cream); color:var(--muted); border-radius:999px; padding:9px 18px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+    .tab.active { background:var(--forest); color:var(--cream); border-color:var(--forest); }
+    .card { background:var(--cream); border:1px solid var(--border); border-radius:20px; padding:20px; margin-bottom:16px; }
+    .card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+    .email { font-weight:700; font-size:15px; }
+    .uid { font-family:ui-monospace,monospace; font-size:10px; color:var(--muted); margin-top:4px; word-break:break-all; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin:16px 0; }
+    .stat { background:var(--nude); border-radius:14px; padding:12px 14px; }
+    .stat .k { font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); font-weight:700; }
+    .stat .v { font-size:15px; font-weight:700; margin-top:4px; }
+    .badge { display:inline-block; border-radius:999px; padding:5px 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+    .badge.active { background:var(--active-bg); color:var(--active); }
+    .badge.pending { background:#FDE8C8; color:#92400E; }
+    .badge.inactive { background:var(--bronze-bg); color:var(--bronze); }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+    label { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+    select, input { background:var(--nude); border:1px solid var(--border); border-radius:10px; padding:9px 12px; color:var(--forest); font-family:inherit; font-size:12px; }
+    button.act { background:var(--forest); color:var(--cream); border:0; border-radius:999px; padding:10px 18px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+    button.act:hover { background:var(--hover); }
+    button.act.ghost { background:transparent; color:var(--forest); border:1px solid var(--border); }
+    button.act.danger { background:#3B1919; }
+    details { margin-top:14px; border-top:1px solid var(--border); padding-top:12px; }
+    summary { cursor:pointer; font-size:12px; font-weight:600; color:var(--muted); }
+    table { width:100%; border-collapse:collapse; font-size:12px; margin-top:12px; }
+    th { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); padding:8px 6px; border-bottom:1px solid var(--border); }
+    td { padding:9px 6px; border-bottom:1px solid var(--border); vertical-align:top; }
+    .empty { color:var(--muted); font-size:13px; padding:24px; text-align:center; }
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--forest); color:var(--cream); padding:12px 22px; border-radius:999px; font-size:12px; font-weight:600; opacity:0; pointer-events:none; transition:opacity .25s; z-index:50; box-shadow:0 10px 30px rgba(13,51,29,.25); }
+    .toast.show { opacity:1; }
+    .note { background:var(--active-bg); border:1px solid #BFD4B0; color:#2C5220; border-radius:14px; padding:14px 18px; font-size:12px; line-height:1.6; margin-bottom:20px; }
+    code { font-family:ui-monospace,monospace; font-size:11px; background:var(--nude); padding:2px 6px; border-radius:5px; }
+  </style>
 </head>
 <body>
-<header class="topbar"><div class="wrap topbar-in">
-  <a class="brand" href="/"><span class="mark">T</span><span>TitanTrading<small>Panel Admin</small></span></a>
-  <nav class="nav">
-    <a href="/">Beranda</a><a href="/app">Dashboard Klien</a>
-    <span id="who" class="muted small"></span>
-    <button type="button" onclick="logout()">Keluar</button>
-  </nav>
-</div></header>
+  <header>
+    <div class="brand"><div class="mark">T</div><span>TITAN VAULT · MASTER</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="/">Portal</a>
+      <button id="signout">Sign out</button>
+    </div>
+  </header>
 
-<main class="wrap">
-  <section class="hero" style="padding-top:36px">
-    <h1 style="font-size:38px;margin:0">Panel <span class="gold">Admin</span></h1>
-    <p class="muted">Setujui pembayaran demo, aktifkan langganan, kelola pengguna, ubah paket, dan pantau log. Semua aksi tercatat.</p>
-    <div class="notice mt"><strong>Mode demo:</strong> Persetujuan di sini hanya mengubah status di database demo. Tidak ada pembayaran nyata yang diproses.</div>
-    <div class="stat-grid mt" id="stats"></div>
-    <div class="card card-pad mt" id="pilotBridge">
-      <span class="section-kicker">PILOT EKSPERIMENTAL</span><h2>Hubungkan laptop MT5 demo</h2>
-      <p class="small muted">Gunakan ID dan kunci yang muncul di program laptop, bukan password broker. Kunci tidak disimpan di browser. Broker HFM, akun demo hedging, dan izin lokal diperlukan.</p>
-      <label for="pilotId">ID perangkat</label><input id="pilotId" autocomplete="off" placeholder="ID dari laptop"/>
-      <label for="pilotSecret">Kunci perangkat</label><input id="pilotSecret" type="password" autocomplete="off" placeholder="Kunci dari laptop"/>
-      <label for="pilotSymbol">Simbol bot demo</label><select id="pilotSymbol"><option value="XAUUSD">Emas · XAUUSD</option><option value="#BTCUSD">Bitcoin · #BTCUSD</option></select>
-      <p class="small muted">Pilih satu simbol. BTC menggunakan eksperimen breakout M5 sepanjang hari dibandingkan 12 candle M5 sebelumnya; butuh penghubung versi 4. Alur order otomatis website belum diuji end-to-end pada HFM.</p>
-      <div class="notice"><strong>Demo eksperimental saja.</strong> Start dapat membuka dan menutup order demo. Stop tidak menutup posisi. Tidak ada jaminan profit atau batas rugi; jangan gunakan akun real.</div>
-      <div class="row mt"><button class="btn btn-ghost" type="button" id="pilotPair">Hubungkan</button><button class="btn btn-green" type="button" id="pilotStart" disabled>Start demo</button><button class="btn btn-danger" type="button" id="pilotStop" disabled>Stop demo</button></div>
-      <p id="pilotStatus" role="status" class="small muted mt">Belum terhubung.</p>
-      <p class="small muted">Start hanya bekerja saat jendela ini terbuka dan laptop mengizinkan trading demo secara eksplisit. Hilang koneksi menghentikan siklus baru; posisi yang sudah terbuka tidak otomatis ditutup. Belum diuji pada broker; risiko, hasil, dan penutupan profit tidak dijamin. Jangan gunakan untuk akun real.</p>
-      <a href="/downloads/titan-mt5-bridge.zip" class="btn btn-ghost btn-sm" download>Unduh penghubung laptop ↓</a>
+  <main>
+    <h1>Master Dashboard</h1>
+    <p class="sub">Real user records, payment confirmations, activation, and bot command feed.</p>
+
+    <div id="gate" class="card" style="display:none">
+      <div id="gate-msg" class="empty">Checking session…</div>
     </div>
 
-    <div class="tabs mt">
-      <button type="button" class="active" data-tab="payments">Pembayaran</button>
-      <button type="button" data-tab="users">Pengguna</button>
-      <button type="button" data-tab="plans">Paket</button>
-      <button type="button" data-tab="logs">Log</button>
+    <div id="panel" style="display:none">
+      <div class="note">
+        <strong>How activation works:</strong> a client submits a payment reference in the portal, then you
+        confirm it here. Setting status to <code>active</code> unlocks broker accounts and bot controls;
+        setting it to <code>pending</code> or <code>inactive</code> stops all bots for that user.
+        Bot start/stop commands are exposed at <code>/api/admin/commands</code> for the MT5 bridge worker.
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="users">Users</button>
+        <button class="tab" data-tab="commands">Bot commands</button>
+        <button class="tab" data-tab="events">Audit log</button>
+      </div>
+
+      <section id="tab-users"></section>
+      <section id="tab-commands" style="display:none"></section>
+      <section id="tab-events" style="display:none"></section>
     </div>
+  </main>
 
-    <div id="tab-payments" class="card card-pad">
-      <h2 style="font-size:20px;margin:0">Antrian Pembayaran</h2>
-      <div class="table-wrap mt"><table>
-        <thead><tr><th>Tanggal</th><th>Pengguna</th><th>Paket</th><th>Jumlah</th><th>Metode</th><th>Referensi</th><th>Status</th><th>Aksi</th></tr></thead>
-        <tbody id="payRows"></tbody>
-      </table></div>
-    </div>
+  <div class="toast" id="toast"></div>
 
-    <div id="tab-users" class="card card-pad hidden">
-      <h2 style="font-size:20px;margin:0">Pengguna</h2>
-      <div class="table-wrap mt"><table>
-        <thead><tr><th>Nama / Email</th><th>Role</th><th>Status</th><th>Paket</th><th>Akun</th><th>Bot Jalan</th><th>Aksi</th></tr></thead>
-        <tbody id="userRows"></tbody>
-      </table></div>
-    </div>
+  <script>
+    let toastTimer = null;
+    function toast(message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+    }
+    function esc(v) {
+      return String(v === null || v === undefined ? '' : v)
+        .replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+    }
+    async function api(url, options = {}) {
+      const r = await fetch(url, {
+        credentials: 'same-origin', ...options,
+        headers: { 'Content-Type':'application/json', 'X-Titan-Client':'1', ...(options.headers || {}) }
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.ok === false) throw new Error(d.error || `Request failed (${r.status})`);
+      return d;
+    }
+    function fmt(d) { return d ? new Date(d).toLocaleString() : '—'; }
+    function badge(status) { return `<span class="badge ${esc(status)}">${esc(status)}</span>`; }
 
-    <div id="tab-plans" class="card card-pad hidden">
-      <h2 style="font-size:20px;margin:0">Kelola Paket</h2>
-      <div id="planRows" class="grid3 mt"></div>
-    </div>
+    async function loadUsers() {
+      const box = document.getElementById('tab-users');
+      try {
+        const d = await api('/api/admin/users');
+        if (!d.users.length) { box.innerHTML = '<div class="card empty">No users registered yet.</div>'; return; }
+        box.innerHTML = d.users.map((u) => {
+          const payments = Object.entries(u.payments || {});
+          const payRows = payments.length ? payments.map(([k, p]) => `
+            <tr>
+              <td>${esc(p.plan || '—')} · $${esc(p.amount)}</td>
+              <td>${fmt(p.date)}</td>
+              <td>${esc(p.tid || '—')} · ${esc(p.method || '—')}</td>
+              <td>${badge(p.status || 'pending')}</td>
+              <td>
+                ${(p.status !== 'active') ? `<button class="act" style="padding:6px 12px" onclick="payAction('${esc(u.uid)}','${esc(k)}','approve')">Confirm</button>` : ''}
+                ${(p.status !== 'rejected') ? `<button class="act ghost" style="padding:6px 12px" onclick="payAction('${esc(u.uid)}','${esc(k)}','reject')">Reject</button>` : ''}
+              </td>
+            </tr>`).join('') : '<tr><td colspan="5" style="color:var(--muted)">No payments submitted.</td></tr>';
 
-    <div id="tab-logs" class="card card-pad hidden">
-      <h2 style="font-size:20px;margin:0">Log Aktivitas</h2>
-      <div id="logRows" class="mt"></div>
-    </div>
+          return `
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="email">${esc(u.email || u.name || 'Unknown user')}</div>
+                  <div class="uid">${esc(u.uid)}</div>
+                </div>
+                ${badge(u.status)}
+              </div>
+              <div class="grid">
+                <div class="stat"><div class="k">Plan</div><div class="v">${esc(String(u.plan || 'bronze').toUpperCase())}</div></div>
+                <div class="stat"><div class="k">Broker accounts</div><div class="v">${esc(u.accountCount)}</div></div>
+                <div class="stat"><div class="k">Bots running</div><div class="v">${esc(u.botsRunning)}</div></div>
+                <div class="stat"><div class="k">Started</div><div class="v">${fmt(u.startedDate)}</div></div>
+                <div class="stat"><div class="k">Next renewal</div><div class="v">${fmt(u.renewalDate)}</div></div>
+              </div>
+              <div class="row">
+                <label for="plan-${esc(u.uid)}">Plan</label>
+                <select id="plan-${esc(u.uid)}">
+                  <option value="pro" ${u.plan === 'pro' ? 'selected' : ''}>PRO — $50 / 1 account</option>
+                  <option value="bronze" ${u.plan === 'bronze' ? 'selected' : ''}>BRONZE — $100 / 3 accounts</option>
+                  <option value="platinum" ${u.plan === 'platinum' ? 'selected' : ''}>PLATINUM — $250 / unlimited</option>
+                </select>
+                <label for="status-${esc(u.uid)}">Status</label>
+                <select id="status-${esc(u.uid)}">
+                  <option value="pending" ${u.status === 'pending' ? 'selected' : ''}>Pending</option>
+                  <option value="active" ${u.status === 'active' ? 'selected' : ''}>Active</option>
+                  <option value="inactive" ${u.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                </select>
+                <button class="act" onclick="saveUser('${esc(u.uid)}')">Save changes</button>
+              </div>
+              <details>
+                <summary>Payment history (${payments.length})</summary>
+                <table>
+                  <thead><tr><th>Plan</th><th>Date</th><th>Reference</th><th>Status</th><th>Action</th></tr></thead>
+                  <tbody>${payRows}</tbody>
+                </table>
+              </details>
+            </div>`;
+        }).join('');
+      } catch (err) { box.innerHTML = `<div class="card empty">${esc(err.message)}</div>`; }
+    }
 
-    <div class="card card-pad mt">
-      <h2 style="font-size:20px;margin:0">Pengamanan sementara</h2>
-      <p class="muted small">Reset data demo dan order demo dinonaktifkan selama pengamanan. Posisi terbuka tidak otomatis ditutup.</p>
-    </div>
-  </section>
-</main>
+    async function saveUser(uid) {
+      try {
+        await api('/api/admin/users/' + encodeURIComponent(uid), {
+          method: 'PATCH',
+          body: JSON.stringify({
+            plan: document.getElementById('plan-' + uid).value,
+            status: document.getElementById('status-' + uid).value
+          })
+        });
+        toast('User updated');
+        await loadUsers();
+      } catch (err) { toast(err.message); }
+    }
 
-<div class="modal-backdrop" id="rejectModal">
-  <div class="card modal card-pad">
-    <h2 style="margin:0;font-size:22px">Tolak Pembayaran</h2>
-    <form id="rejectForm">
-      <input type="hidden" id="rejectId"/>
-      <label>Alasan penolakan</label><textarea id="rejectReason" required placeholder="Contoh: referensi demo tidak ditemukan."></textarea>
-      <div class="row mt"><button class="btn btn-danger" type="submit">Tolak</button><button class="btn btn-ghost" type="button" onclick="closeReject()">Batal</button></div>
-    </form>
-  </div>
-</div>
+    async function payAction(uid, key, action) {
+      try {
+        const body = action === 'approve' ? { approvePaymentKey: key, status: 'active' } : { rejectPaymentKey: key };
+        await api('/api/admin/users/' + encodeURIComponent(uid), { method: 'PATCH', body: JSON.stringify(body) });
+        toast(action === 'approve' ? 'Payment confirmed and account activated' : 'Payment rejected');
+        await loadUsers();
+      } catch (err) { toast(err.message); }
+    }
 
-<div class="modal-backdrop" id="activateModal">
-  <div class="card modal card-pad">
-    <h2 style="margin:0;font-size:22px">Aktifkan Langganan</h2>
-    <form id="activateForm">
-      <input type="hidden" id="activateUserId"/>
-      <label>Paket</label><select id="activatePlan"></select>
-      <label>Durasi (hari)</label><input id="activateDays" type="number" min="1" max="3650" value="30"/>
-      <div class="row mt"><button class="btn btn-gold" type="submit">Aktifkan</button><button class="btn btn-ghost" type="button" onclick="closeActivate()">Batal</button></div>
-    </form>
-  </div>
-</div>
+    async function loadCommands() {
+      const box = document.getElementById('tab-commands');
+      try {
+        const d = await api('/api/admin/commands');
+        if (!d.commands.length) { box.innerHTML = '<div class="card empty">No active broker accounts yet.</div>'; return; }
+        box.innerHTML = `<div class="card">
+          <div class="email">Bridge command feed</div>
+          <p class="sub" style="margin:6px 0 0">Generated ${fmt(d.generatedAt)} · Poll <code>GET /api/admin/commands</code> from the MT5 worker.</p>
+          <table>
+            <thead><tr><th>User</th><th>Account</th><th>Broker / Server</th><th>Login</th><th>Command</th></tr></thead>
+            <tbody>${d.commands.map((c) => `
+              <tr>
+                <td>${esc(c.email)}</td>
+                <td>${esc(c.accountName)}<div class="uid">${esc(c.accountId)}</div></td>
+                <td>${esc(c.broker)} · ${esc(c.server)} <span class="badge inactive">${esc(c.platform)}</span></td>
+                <td>${esc(c.login)}</td>
+                <td>${c.running ? '<span class="badge active">START / RUNNING</span>' : '<span class="badge pending">STOPPED</span>'}</td>
+              </tr>`).join('')}</tbody>
+          </table>
+        </div>`;
+      } catch (err) { box.innerHTML = `<div class="card empty">${esc(err.message)}</div>`; }
+    }
 
-<footer class="footer"><div class="wrap">TitanTrading Demo — panel admin simulasi.</div></footer>
-<div class="toast"></div>
-<script src="/shared.js"></script>
-<script>
-let data=null;
-let pilotPaired=false, pilotRunning=false, pilotBusy=false;
-const pilotCredentials=()=>({deviceId:$('#pilotId').value.trim(),secret:$('#pilotSecret').value.trim()});
-let pilotQueue=Promise.resolve();
-function pilotCall(path,extra={}){
-  const body=JSON.stringify({...pilotCredentials(),...extra});
-  const next=pilotQueue.catch(()=>{}).then(()=>api('/api/pilot/'+path,{method:'POST',body}));
-  pilotQueue=next; return next;
-}
-for(const input of [$('#pilotId'),$('#pilotSecret')]) input.addEventListener('input',()=>{
-  pilotPaired=false;pilotRunning=false;$('#pilotSymbol').disabled=false;$('#pilotStart').disabled=true;$('#pilotStop').disabled=true;$('#pilotStatus').textContent='Perangkat belum terhubung.';
-});
-async function pilotUpdate(){
-  if(!pilotPaired || pilotBusy) return;
-  pilotBusy=true;
-  try{
-    if(pilotRunning) await pilotCall('control',{action:'renew',symbol:$('#pilotSymbol').value});
-    const x=await pilotCall('status'), s=x.status;
-    $('#pilotStatus').textContent=!x.online?'Laptop offline atau belum menjalankan penghubung.':
-      `Laptop online · ${s?.demo?'akun demo':'akun bukan demo / belum terdeteksi'} · bot ${s?.state||'stopped'} · simbol ${x.symbol || 'XAUUSD'} · quote BTC ${(s?.protocol||0)<4?'perbarui penghubung':(s?.quoteOkBtc?'valid':'belum valid')} · batas rugi harian BTC ${s?.btcNoDailyLimit?'DINONAKTIFKAN (opsi lokal)':'aktif jika didukung bridge'} · saldo ${s?.balance ?? '-'} · equity ${s?.equity ?? '-'} · posisi ${s?.positions ?? '-'}`;
-  }catch(e){pilotRunning=false; $('#pilotSymbol').disabled=false; $('#pilotStatus').textContent='Koneksi terputus: '+e.message;}
-  finally{pilotBusy=false;}
-}
-$('#pilotPair').onclick=async()=>{try{await pilotCall('register');pilotPaired=true;pilotRunning=false;$('#pilotStart').disabled=false;$('#pilotStop').disabled=false;await pilotUpdate();}catch(e){toast(e.message,true);}};
-$('#pilotStart').onclick=async()=>{
-  if(!confirm(`Mengizinkan percobaan order ${$('#pilotSymbol').value} pada akun DEMO? Bot eksperimental belum diuji HFM.`))return;
-  try{await pilotCall('control',{action:'start',symbol:$('#pilotSymbol').value});pilotRunning=true;$('#pilotSymbol').disabled=true;toast('Permintaan start demo dikirim.');await pilotUpdate();}catch(e){toast(e.message,true);}
-};
-$('#pilotStop').onclick=async()=>{pilotRunning=false;$('#pilotSymbol').disabled=false;try{await pilotCall('control',{action:'stop'});toast('Permintaan stop dikirim. Posisi terbuka tidak otomatis ditutup.');await pilotUpdate();}catch(e){toast(e.message,true);}};
-setInterval(pilotUpdate,10000);
+    async function loadEvents() {
+      const box = document.getElementById('tab-events');
+      try {
+        const d = await api('/api/admin/events');
+        if (!d.events.length) { box.innerHTML = '<div class="card empty">No events recorded yet.</div>'; return; }
+        box.innerHTML = `<div class="card"><table>
+          <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Detail</th></tr></thead>
+          <tbody>${d.events.map((e) => `
+            <tr><td>${fmt(e.created_at)}</td><td>${esc(e.actor_email || 'system')}</td>
+            <td>${esc(e.action)}</td><td><code>${esc(JSON.stringify(e.detail || {}))}</code></td></tr>`).join('')}</tbody>
+        </table></div>`;
+      } catch (err) { box.innerHTML = `<div class="card empty">${esc(err.message)}</div>`; }
+    }
 
-$$('.tabs button').forEach(b=>b.onclick=()=>{
-  $$('.tabs button').forEach(x=>x.classList.toggle('active',x===b));
-  ['payments','users','plans','logs'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==b.dataset.tab));
-});
+    function showTab(name) {
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      ['users','commands','events'].forEach((n) => {
+        document.getElementById('tab-' + n).style.display = n === name ? '' : 'none';
+      });
+      if (name === 'users') loadUsers();
+      if (name === 'commands') loadCommands();
+      if (name === 'events') loadEvents();
+    }
 
-async function loadAll(){
-  const u=await me(); if(!u){ location.href='/'; return; }
-  if(u.role!=='admin'){ toast('Akses admin diperlukan.',true); location.href='/app'; return; }
-  $('#who').textContent=u.email;
-  data=await api('/api/admin/overview');
-  render();
-}
-function render(){
-  const s=data.stats;
-  $('#stats').innerHTML=[
-    ['Total Pengguna',s.totalUsers],['Langganan Aktif',s.activeSubscriptions],
-    ['Pembayaran Menunggu',s.pendingPayments],['Pendapatan Disetujui',fmtIDR(s.approvedRevenueIdr)],
-    ['Bot Berjalan',s.runningBots],['Total Akun Demo',s.totalAccounts]
-  ].slice(0,4).map(([k,v])=>`<div class="card stat"><div class="muted small">${k}</div><div class="num" style="font-size:24px">${v}</div></div>`).join('')
-  + `<div class="card stat"><div class="muted small">Bot Berjalan</div><div class="num" style="font-size:24px">${s.runningBots}</div></div>`
-  + `<div class="card stat"><div class="muted small">Total Akun Demo</div><div class="num" style="font-size:24px">${s.totalAccounts}</div></div>`;
+    document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.tab)));
+    document.getElementById('signout').addEventListener('click', async () => {
+      try { await api('/api/auth/logout', { method:'POST', body:'{}' }); } catch {}
+      location.href = '/';
+    });
 
-  $('#payRows').innerHTML = data.payments.length ? data.payments.map(p=>`<tr>
-    <td>${fmtDate(p.createdAt)}</td>
-    <td><strong>${esc(p.userName)}</strong><br/><span class="muted small">${esc(p.userEmail)}</span></td>
-    <td>${esc(p.planName)}</td><td>${fmtIDR(p.amountIdr)}</td>
-    <td>${esc(p.method)}</td><td class="mono">${esc(p.reference)}<br/><span class="muted small">${esc(p.senderName)}</span></td>
-    <td>${statusPill(p.status)}${p.status==='rejected'&&p.rejectReason?`<div class="tiny muted mt">${esc(p.rejectReason)}</div>`:''}</td>
-    <td>${p.status==='pending'?`<div class="row"><button class="btn btn-green btn-sm" onclick="approvePay('${p.id}')">Setujui</button><button class="btn btn-danger btn-sm" onclick="openReject('${p.id}')">Tolak</button></div>`:'<span class="muted small">—</span>'}</td>
-  </tr>`).join('') : `<tr><td colspan="8" class="muted">Belum ada pembayaran.</td></tr>`;
-
-  $('#userRows').innerHTML = data.users.map(u=>`<tr>
-    <td><strong>${esc(u.name)}</strong><br/><span class="muted small">${esc(u.email)}</span></td>
-    <td><span class="pill ${u.role==='admin'?'gold':'blue'}">${esc(u.role)}</span></td>
-    <td>${statusPill(u.status)}<br/>${statusPill(u.subscription?.status)}</td>
-    <td>${esc(u.planName)}</td><td>${u.accountCount}</td><td>${u.runningBots}</td>
-    <td><div class="row">
-      <button class="btn btn-gold btn-sm" onclick="openActivate('${u.id}')">Aktifkan</button>
-      <button class="btn btn-ghost btn-sm" onclick="deactivateUser('${u.id}')">Nonaktifkan</button>
-      ${u.status==='active'?`<button class="btn btn-danger btn-sm" onclick="setUserStatus('${u.id}','suspended')">Suspend</button>`:`<button class="btn btn-green btn-sm" onclick="setUserStatus('${u.id}','active')">Aktifkan Akun</button>`}
-    </div></td>
-  </tr>`).join('');
-
-  $('#planRows').innerHTML = data.plans.map(p=>`<div class="card" style="padding:16px;background:var(--card2)">
-    <div class="row space-between"><strong>${esc(p.name)}</strong>${p.active?'<span class="pill green">Aktif</span>':'<span class="pill red">Nonaktif</span>'}</div>
-    <label>Harga (Rp)</label><input type="number" min="0" value="${p.priceIdr}" id="price-${p.id}"/>
-    <label>Batas akun (0 = tanpa batas)</label><input type="number" min="0" value="${p.accountLimit}" id="limit-${p.id}"/>
-    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="active-${p.id}" ${p.active?'checked':''} style="width:auto"/> Paket aktif</label>
-    <button class="btn btn-gold btn-sm mt" onclick="savePlan('${p.id}')">Simpan</button>
-  </div>`).join('');
-
-  $('#logRows').innerHTML = data.logs.length ? data.logs.map(l=>`<div class="small" style="padding:9px 0;border-bottom:1px solid var(--line)"><span class="muted">${fmtDate(l.createdAt)}</span> • ${esc(l.actorEmail||l.actorRole)} • <strong>${esc(l.action)}</strong><br/>${esc(l.message||'')}</div>`).join('') : `<p class="muted">Belum ada log.</p>`;
-}
-
-async function approvePay(id){ try{ await api(`/api/admin/payments/${id}/approve`,{method:'POST',body:'{}'}); toast('Pembayaran disetujui, langganan aktif.'); loadAll(); }catch(e){ toast(e.message,true); } }
-function openReject(id){ $('#rejectId').value=id; $('#rejectReason').value=''; $('#rejectModal').classList.add('open'); }
-function closeReject(){ $('#rejectModal').classList.remove('open'); }
-$('#rejectForm').onsubmit=async(e)=>{ e.preventDefault();
-  try{ await api(`/api/admin/payments/${$('#rejectId').value}/reject`,{method:'POST',body:JSON.stringify({reason:$('#rejectReason').value})}); toast('Pembayaran ditolak.'); closeReject(); loadAll(); }
-  catch(err){ toast(err.message,true); }
-};
-function openActivate(uid){
-  $('#activateUserId').value=uid;
-  $('#activatePlan').innerHTML=data.plans.map(p=>`<option value="${p.id}">${esc(p.name)} — ${fmtIDR(p.priceIdr)}</option>`).join('');
-  $('#activateModal').classList.add('open');
-}
-function closeActivate(){ $('#activateModal').classList.remove('open'); }
-$('#activateForm').onsubmit=async(e)=>{ e.preventDefault();
-  try{ await api(`/api/admin/users/${$('#activateUserId').value}/activate`,{method:'POST',body:JSON.stringify({planId:$('#activatePlan').value,days:Number($('#activateDays').value)})}); toast('Langganan diaktifkan.'); closeActivate(); loadAll(); }
-  catch(err){ toast(err.message,true); }
-};
-async function deactivateUser(uid){ if(!confirm('Nonaktifkan langganan pengguna ini? Bot akan berhenti.')) return;
-  try{ await api(`/api/admin/users/${uid}/deactivate`,{method:'POST',body:'{}'}); toast('Langganan dinonaktifkan.'); loadAll(); }catch(e){ toast(e.message,true); } }
-async function setUserStatus(uid,status){ try{ await api(`/api/admin/users/${uid}`,{method:'PATCH',body:JSON.stringify({status})}); toast('Status pengguna diperbarui.'); loadAll(); }catch(e){ toast(e.message,true); } }
-async function savePlan(pid){
-  try{ await api(`/api/admin/plans/${pid}`,{method:'PATCH',body:JSON.stringify({priceIdr:Number($('#price-'+pid).value),accountLimit:Number($('#limit-'+pid).value),active:$('#active-'+pid).checked})}); toast('Paket disimpan.'); loadAll(); }
-  catch(e){ toast(e.message,true); }
-}
-async function resetDemo(){ if(!confirm('Reset SEMUA data demo?')) return;
-  try{ await api('/api/admin/reset-demo',{method:'POST',body:'{}'}); toast('Data demo direset.'); location.href='/'; }catch(e){ toast(e.message,true); } }
-loadAll().catch(e=>toast(e.message,true));
-</script>
+    (async () => {
+      try {
+        const s = await api('/api/session');
+        if (!s.user) {
+          document.getElementById('gate').style.display = '';
+          document.getElementById('gate-msg').innerHTML = 'Please sign in first. <a href="/" style="color:var(--forest);font-weight:700">Go to portal</a>';
+          return;
+        }
+        if (!s.user.isAdmin) {
+          document.getElementById('gate').style.display = '';
+          document.getElementById('gate-msg').textContent = 'This account does not have master access.';
+          return;
+        }
+        document.getElementById('panel').style.display = '';
+        showTab('users');
+      } catch (err) {
+        document.getElementById('gate').style.display = '';
+        document.getElementById('gate-msg').textContent = err.message;
+      }
+    })();
+  </script>
 </body>
 </html>

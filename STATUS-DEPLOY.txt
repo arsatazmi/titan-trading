@@ -1,5 +1,12 @@
-Source sudah diadaptasi untuk Vercel Functions + Supabase JSONB.
-Repo: https://github.com/arsatazmi/titan-trading (publik).
-Supabase dan env Vercel sudah disiapkan; deployment belum terverifikasi.
-Sambungkan repo di dashboard Vercel dan lakukan deployment pertama.
-Demo saja, bukan produksi. Lihat DEPLOY.md.
+TITAN VAULT — STATUS
+====================
+
+Aplikasi : Portal akun produksi (bukan demo, bukan simulasi)
+Backend  : Supabase Auth + Postgres, cookie sesi HttpOnly, CSRF + origin check
+Frontend : Titan Vault satu halaman, bahasa Inggris, tema krem/hijau sesuai referensi
+Paket    : PRO $50 / BRONZE $100 / PLATINUM $250 per bulan
+Bayar    : MTN, Airtel Money, Binance USDT TRC20 + konfirmasi WhatsApp
+Master   : /admin (aktivasi, paket, konfirmasi pembayaran, audit, feed perintah bot)
+
+ Lihat DEPLOY.md untuk URL produksi, konfigurasi, dan cara verifikasi.
+ Lihat README.md untuk daftar fitur dan variabel lingkungan.

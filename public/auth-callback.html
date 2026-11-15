@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Titan Vault — Signing in</title>
+  <style>
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      background:#FBECE1; color:#0D331D; font-family:'Plus Jakarta Sans',system-ui,sans-serif; }
+    .box { background:#FAF5EE; border:1px solid rgba(13,51,29,.1); border-radius:20px; padding:32px; max-width:420px; text-align:center; }
+    h1 { font-family:Georgia,serif; font-size:24px; margin:0 0 10px; }
+    p { font-size:13px; color:#7A8C80; line-height:1.6; }
+    a { color:#0D331D; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1 id="title">Completing sign in…</h1>
+    <p id="message">Please wait while we establish your session.</p>
+    <p id="fallback" style="display:none"><a href="/">Return to the portal</a></p>
+  </div>
+  <script>
+    (async () => {
+      const raw = location.hash.replace(/^#/, '');
+      const params = new URLSearchParams(raw);
+      const access = params.get('access_token');
+      const refresh = params.get('refresh_token');
+      const error = params.get('error_description') || params.get('error');
+      const title = document.getElementById('title');
+      const message = document.getElementById('message');
+      const fallback = document.getElementById('fallback');
+      if (error || !access) {
+        title.textContent = 'Sign in did not complete';
+        message.textContent = error || 'No access token was returned by the provider.';
+        fallback.style.display = '';
+        return;
+      }
+      try {
+        const r = await fetch('/api/auth/session', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-Titan-Client': '1' },
+          body: JSON.stringify({ access_token: access, refresh_token: refresh || '' })
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.ok === false) throw new Error(d.error || 'Session exchange failed.');
+        location.replace('/');
+      } catch (err) {
+        title.textContent = 'Sign in did not complete';
+        message.textContent = err.message;
+        fallback.style.display = '';
+      }
+    })();
+  </script>
+</body>
+</html>

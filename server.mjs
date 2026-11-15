@@ -1,81 +1,98 @@
 import http from 'node:http';
-import { remoteEnabled, withRemoteState } from './lib/store.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import {
-  getDb, load, save, resetDemo, getSecret, hashPassword, verifyPassword, id, now, addDays,
-  logEvent, publicUser, findUserByEmail, findUserById, findPlan, accountsForUser,
-  paymentsForUser, isSubscriptionActive, stopAccount, tickSimulation
-} from './lib/store.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
-const COOKIE = 'tt_session';
-const SESSION_DAYS = 7;
-const MAX_BODY = 100_000;
-const DEMO_NOTICE = 'Mode demo: tidak ada trading nyata, tidak ada pembayaran nyata, dan jangan masukkan password broker asli.';
-// Experimental DEMO only. BTC requires protocol-4; local opt-in, fresh quote
-// and short lease are all required; broker execution is not guaranteed.
-// SECURITY TRANSITION: no demo order lease until access and pairing are repaired.
-const PILOT_DEMO_ENABLED = false;
-const PAYMENT_METHODS = [
-  { id: 'bank_demo', label: 'Transfer Bank Demo', instruction: 'Rekening demo: 0000-0000-0000 a.n. TitanTrading Demo. Jangan transfer uang nyata.' },
-  { id: 'qris_demo', label: 'QRIS Demo', instruction: 'QRIS demo: TT-DEMO-QRIS. Jangan scan atau bayar di dunia nyata.' },
-  { id: 'ewallet_demo', label: 'E-Wallet Demo', instruction: 'Nomor demo: 0800-0000-0000. Jangan kirim saldo nyata.' },
-  { id: 'usdt_demo', label: 'USDT Demo', instruction: 'Alamat demo: TT-DEMO-USDT-000. Jangan kirim aset kripto nyata.' }
-];
-const loginAttempts = new Map();
+const COOKIE = 'tv_session';
+const SESSION_DAYS = 30;
+const MAX_BODY = 1_000_000;
 
-load();
-getSecret();
+const SUPABASE_URL = String(process.env.SUPABASE_URL || 'https://zwiatrbdvetqcjivqomo.supabase.co').replace(/\/$/, '');
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
+const ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3aWF0cmJkdmV0cWNqaXZxb21vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2NzU1NDcsImV4cCI6MjExMDI1MTU0N30.Z4sRf7J9SpotR55gDC9ce9By2ipfrl58docBSUCDLmk';
+const ADMIN_EMAILS = String(process.env.ADMIN_EMAILS || 'arsatazmi12@gmail.com')
+  .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+const GOOGLE_OAUTH_ENABLED = process.env.GOOGLE_OAUTH_ENABLED === 'true';
 
-function sha256(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
+/* Broker credentials are encrypted at rest (AES-256-GCM). The key is derived
+   from the server-side service key, so it is never shipped to the browser. */
+const CREDENTIAL_KEY = crypto.scryptSync(
+  SERVICE_KEY || 'titan-vault-local-development',
+  'titan-vault-broker-credentials-v1',
+  32
+);
+const ENC_PREFIX = 'enc:v1:';
+function encryptSecret(value) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', CREDENTIAL_KEY, iv);
+  const ciphertext = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  return ENC_PREFIX + Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString('base64url');
 }
+function decryptSecret(value) {
+  if (typeof value !== 'string' || !value.startsWith(ENC_PREFIX)) return value;
+  try {
+    const buf = Buffer.from(value.slice(ENC_PREFIX.length), 'base64url');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', CREDENTIAL_KEY, buf.subarray(0, 12));
+    decipher.setAuthTag(buf.subarray(12, 28));
+    return Buffer.concat([decipher.update(buf.subarray(28)), decipher.final()]).toString('utf8');
+  } catch { return value; }
+}
+function mapPasswords(value, transform) {
+  if (Array.isArray(value)) return value.map((v) => mapPasswords(v, transform));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = k === 'password' && typeof v === 'string' ? transform(v) : mapPasswords(v, transform);
+    }
+    return out;
+  }
+  return value;
+}
+const encryptCredentials = (v) => mapPasswords(v, (s) => s.startsWith(ENC_PREFIX) ? s : encryptSecret(s));
+const decryptCredentials = (v) => mapPasswords(v, decryptSecret);
 
+const PLANS = [
+  { id: 'pro', name: 'PRO', price: 50, accountLimit: 1, features: ['1 broker account limit (MT4 or MT5)', 'Start and stop the XAUUSD bot'] },
+  { id: 'bronze', name: 'BRONZE', price: 100, accountLimit: 3, features: ['Up to 3 broker accounts limit', 'Start and stop the bot per account'] },
+  { id: 'platinum', name: 'PLATINUM', price: 250, accountLimit: 0, features: ['Unlimited broker accounts', 'Start and stop the bot per account'] }
+];
+const PAYMENT_METHODS = [
+  { id: 'mtn', label: 'MTN MOBILE MONEY', number: '0788087502', holder: 'Nakasiita Shakirah' },
+  { id: 'airtel', label: 'AIRTEL MONEY', number: '0743453912', holder: 'Nakalema Sumayah' },
+  { id: 'binance', label: 'BINANCE — USDT (TRC20)', number: 'TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz', holder: 'USDT TRC20 wallet' }
+];
+
+/* ------------------------------------------------------------------ helpers */
 function send(res, status, data, headers = {}) {
-  const body = JSON.stringify(data);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
     ...headers
   });
-  res.end(body);
+  res.end(JSON.stringify(data));
 }
-
-function fail(res, status, message, code = 'error') {
-  send(res, status, { ok: false, error: message, code });
-}
-
-function ok(res, data = {}) {
-  send(res, 200, { ok: true, ...data });
-}
+const ok = (res, data = {}) => send(res, 200, { ok: true, ...data });
+const fail = (res, status, message, code = 'error') => send(res, status, { ok: false, error: message, code });
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
-    req.on('data', (chunk) => {
-      size += chunk.length;
-      if (size > MAX_BODY) {
-        reject(new Error('Payload terlalu besar.'));
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > MAX_BODY) { reject(new Error('Payload terlalu besar.')); req.destroy(); return; }
+      chunks.push(c);
     });
     req.on('end', () => {
       if (!chunks.length) return resolve({});
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
-      } catch {
-        reject(new Error('Body JSON tidak valid.'));
-      }
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      catch { reject(new Error('Body JSON tidak valid.')); }
     });
     req.on('error', reject);
   });
@@ -84,219 +101,453 @@ function readBody(req) {
 function parseCookies(req) {
   const header = req.headers.cookie || '';
   return Object.fromEntries(header.split(';').map((part) => {
-    const idx = part.indexOf('=');
-    if (idx < 0) return null;
-    return [part.slice(0, idx).trim(), decodeURIComponent(part.slice(idx + 1).trim())];
+    const i = part.indexOf('=');
+    if (i < 0) return null;
+    try { return [part.slice(0, i).trim(), decodeURIComponent(part.slice(i + 1).trim())]; }
+    catch { return [part.slice(0, i).trim(), part.slice(i + 1).trim()]; }
   }).filter(Boolean));
 }
 
-function cleanupSessions() {
-  const d = getDb();
-  const before = d.sessions.length;
-  d.sessions = d.sessions.filter((s) => new Date(s.expiresAt).getTime() > Date.now());
-  if (d.sessions.length !== before) save();
+function originOf(req) {
+  const proto = String(req.headers['x-forwarded-proto'] || (process.env.VERCEL ? 'https' : 'http')).split(',')[0].trim();
+  const host = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
+  return `${proto}://${host}`;
 }
 
-function createSession(user) {
-  const d = getDb();
-  cleanupSessions();
-  const token = crypto.randomBytes(32).toString('hex');
-  const csrf = crypto.randomBytes(24).toString('hex');
-  const session = {
-    id: id('ses'),
-    userId: user.id,
-    tokenHash: sha256(token),
-    csrf,
-    createdAt: now(),
-    expiresAt: addDays(now(), SESSION_DAYS)
-  };
-  d.sessions.push(session);
-  save();
-  return { token, session };
+function cookieSecure(req) {
+  return process.env.VERCEL === '1' || originOf(req).startsWith('https://');
 }
 
-function destroySession(req) {
-  const token = parseCookies(req)[COOKIE];
-  if (!token) return;
-  const d = getDb();
-  d.sessions = d.sessions.filter((s) => s.tokenHash !== sha256(token));
-  save();
+function setCookie(res, tokens, req) {
+  const value = encodeURIComponent(JSON.stringify(tokens));
+  res.setHeader('Set-Cookie', `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; ${cookieSecure(req) ? 'Secure; ' : ''}Max-Age=${SESSION_DAYS * 86400}`);
+}
+function clearCookie(res, req) {
+  res.setHeader('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; ${cookieSecure(req) ? 'Secure; ' : ''}Max-Age=0`);
 }
 
-function auth(req) {
-  const authHeader = req.headers.authorization || '';
-  const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  const token = bearer || parseCookies(req)[COOKIE];
-  if (!token) return null;
-  const d = getDb();
-  const session = d.sessions.find((s) => s.tokenHash === sha256(token) && new Date(s.expiresAt).getTime() > Date.now());
-  if (!session) return null;
-  const user = findUserById(session.userId);
-  if (!user || (user.role === 'admin' && d.adminRecovery?.userId === user.id)) return null;
-  return { user, session };
-}
-
-function setCookie(res, token) {
-  res.setHeader('Set-Cookie', `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; ${process.env.VERCEL ? 'Secure; ' : ''}Max-Age=${SESSION_DAYS * 86400}`);
-}
-
-function clearCookie(res) {
-  res.setHeader('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; ${process.env.VERCEL ? 'Secure; ' : ''}Max-Age=0`);
-}
-
-function requireAuth(req, res) {
-  const ctx = auth(req);
-  if (!ctx) {
-    fail(res, 401, 'Silakan masuk terlebih dahulu.', 'unauthorized');
-    return null;
-  }
-  return ctx;
-}
-
-function requireAdmin(req, res) {
-  const ctx = requireAuth(req, res);
-  if (!ctx) return null;
-  if (ctx.user.role !== 'admin') {
-    fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    return null;
-  }
-  return ctx;
-}
-
-function checkCsrf(req, res, ctx) {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return true;
-  const token = req.headers['x-csrf-token'];
-  if (!token || token !== ctx.session.csrf) {
-    fail(res, 403, 'Token CSRF tidak valid. Muat ulang halaman.', 'csrf');
+function checkMutation(req, res) {
+  if (req.headers['x-titan-client'] !== '1') {
+    fail(res, 403, 'Permintaan tidak sah.', 'csrf');
     return false;
+  }
+  const origin = req.headers.origin;
+  if (origin) {
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(':')[0];
+    try {
+      if (new URL(origin).hostname !== host) {
+        fail(res, 403, 'Origin tidak cocok.', 'csrf');
+        return false;
+      }
+    } catch {
+      fail(res, 403, 'Origin tidak valid.', 'csrf');
+      return false;
+    }
   }
   return true;
 }
 
-function str(value, max = 200) {
-  return String(value ?? '').trim().slice(0, max);
+/* --------------------------------------------------------------- Supabase IO */
+async function sbFetch(pathname, { method = 'GET', body, key = SERVICE_KEY, headers = {} } = {}) {
+  const response = await fetch(SUPABASE_URL + pathname, {
+    method,
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      ...headers
+    },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  const text = await response.text();
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+  return { ok: response.ok, status: response.status, data };
 }
 
-function validEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+async function authGrant(credential, grantType) {
+  return sbFetch(`/auth/v1/token?grant_type=${grantType}`, { method: 'POST', body: credential, key: ANON_KEY });
+}
+async function authUser(accessToken) {
+  return sbFetch('/auth/v1/user', { key: ANON_KEY, headers: { Authorization: `Bearer ${accessToken}` } });
+}
+function publicUser(u, tokens) {
+  const email = String(u?.email || '').toLowerCase();
+  return {
+    uid: u?.id || '',
+    email: u?.email || '',
+    displayName: u?.user_metadata?.name || (u?.email ? String(u.email).split('@')[0] : ''),
+    isAdmin: ADMIN_EMAILS.includes(email)
+  };
 }
 
-function rateLimit(key, limit = 12, windowMs = 15 * 60 * 1000) {
-  const t = Date.now();
-  const item = loginAttempts.get(key) || { count: 0, resetAt: t + windowMs };
-  if (t > item.resetAt) {
-    item.count = 0;
-    item.resetAt = t + windowMs;
+async function getRow(uid, email = '', isAdmin = false, create = true) {
+  const r = await sbFetch(`/rest/v1/titan_vault_users?uid=eq.${encodeURIComponent(uid)}&select=*`);
+  if (r.ok && Array.isArray(r.data) && r.data.length) return r.data[0];
+  if (!create) return null;
+  const created = await sbFetch('/rest/v1/titan_vault_users?on_conflict=uid', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: { uid, email: email || '', data: {}, is_admin: isAdmin, updated_at: new Date().toISOString() }
+  });
+  if (created.ok && Array.isArray(created.data) && created.data.length) return created.data[0];
+  return { uid, email: email || '', data: {}, is_admin: isAdmin };
+}
+async function saveRow(row, data) {
+  return sbFetch('/rest/v1/titan_vault_users?on_conflict=uid', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: {
+      uid: row.uid,
+      email: row.email || '',
+      data,
+      is_admin: !!row.is_admin,
+      updated_at: new Date().toISOString()
+    }
+  });
+}
+async function logEvent(user, action, detail = {}) {
+  try {
+    await sbFetch('/rest/v1/titan_vault_events', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: {
+        actor_uid: user?.uid || null,
+        actor_email: user?.email || '',
+        action,
+        detail
+      }
+    });
+  } catch { /* audit logging must never break a request */ }
+}
+
+/* --------------------------------------------------------------- session */
+async function getSession(req, res) {
+  const raw = parseCookies(req)[COOKIE];
+  if (!raw) return null;
+  let tokens;
+  try { tokens = JSON.parse(decodeURIComponent(raw)); } catch { return null; }
+  if (!tokens?.access_token) return null;
+  let u = await authUser(tokens.access_token);
+  if (!u.ok && tokens.refresh_token) {
+    const refreshed = await authGrant({ refresh_token: tokens.refresh_token }, 'refresh_token');
+    if (refreshed.ok) {
+      tokens = {
+        access_token: refreshed.data.access_token,
+        refresh_token: refreshed.data.refresh_token || tokens.refresh_token
+      };
+      setCookie(res, tokens, req);
+      u = await authUser(tokens.access_token);
+    }
   }
-  item.count += 1;
-  loginAttempts.set(key, item);
-  return item.count <= limit;
+  if (!u.ok) { clearCookie(res, req); return null; }
+  return { user: publicUser(u.data, tokens), tokens };
+}
+async function requireUser(req, res) {
+  const s = await getSession(req, res);
+  if (!s) { fail(res, 401, 'Silakan masuk terlebih dahulu.', 'unauthorized'); return null; }
+  return s;
+}
+async function requireAdmin(req, res) {
+  const s = await requireUser(req, res);
+  if (!s) return null;
+  if (!s.user.isAdmin) { fail(res, 403, 'Akses master diperlukan.', 'forbidden'); return null; }
+  return s;
 }
 
-function planForUser(user) {
-  return findPlan(user?.subscription?.planId) || findPlan('starter');
+/* --------------------------------------------------------------- JSON path */
+const splitPath = (p) => String(p || '').split('/').filter(Boolean);
+function assertOwner(segments, uid, isAdmin) {
+  if (segments[0] !== 'users') throw new Error('Path tidak valid.');
+  const target = segments[1];
+  if (!target) throw new Error('Path tidak valid.');
+  if (target !== uid && !isAdmin) throw new Error('Akses ditolak.');
+  return segments.slice(2);
+}
+function getAt(obj, keys) {
+  let cur = obj;
+  for (const k of keys) {
+    if (cur === null || cur === undefined || typeof cur !== 'object') return null;
+    cur = cur[k];
+  }
+  return cur === undefined ? null : cur;
+}
+function setAt(obj, keys, value) {
+  if (!keys.length) return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  let cur = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const k = keys[i];
+    if (typeof cur[k] !== 'object' || cur[k] === null || Array.isArray(cur[k])) cur[k] = {};
+    cur = cur[k];
+  }
+  cur[keys[keys.length - 1]] = value;
+  return obj;
+}
+function updateAt(obj, keys, patch) {
+  const clean = patch && typeof patch === 'object' && !Array.isArray(patch) ? patch : {};
+  if (!keys.length) return { ...obj, ...clean };
+  const cur = getAt(obj, keys);
+  const merged = cur && typeof cur === 'object' && !Array.isArray(cur) ? { ...cur, ...clean } : { ...clean };
+  return setAt(obj, keys, merged);
+}
+function deleteAt(obj, keys) {
+  if (!keys.length) return {};
+  const parent = getAt(obj, keys.slice(0, -1));
+  if (parent && typeof parent === 'object') delete parent[keys[keys.length - 1]];
+  return obj;
 }
 
-function accountLimitForUser(user) {
-  const plan = planForUser(user);
-  return plan?.accountLimit ?? 1;
+/* --------------------------------------------------------------- API */
+async function handleApi(req, res, url, method, p) {
+  if (p === '/api/health' && method === 'GET') {
+    return ok(res, { status: 'healthy', app: 'Titan Vault', time: new Date().toISOString() });
+  }
+  if (p === '/api/config' && method === 'GET') {
+    return ok(res, { plans: PLANS, paymentMethods: PAYMENT_METHODS, googleEnabled: GOOGLE_OAUTH_ENABLED });
+  }
+
+  if (p === '/api/auth/google' && method === 'GET') {
+    if (!GOOGLE_OAUTH_ENABLED) {
+      return ok(res, { enabled: false, error: 'Google sign-in belum diaktifkan. Gunakan email & password, atau aktifkan provider Google di Supabase Auth.' });
+    }
+    const redirectTo = originOf(req) + '/auth-callback.html';
+    const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}&response_type=token`;
+    return ok(res, { enabled: true, url: authUrl });
+  }
+
+  if (p === '/api/auth/register' && method === 'POST') {
+    if (!checkMutation(req, res)) return;
+    const body = await readBody(req);
+    const email = String(body.email || '').trim().toLowerCase();
+    const password = String(body.password || '');
+    const name = String(body.name || '').trim().slice(0, 120);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail(res, 400, 'Email tidak valid.');
+    if (password.length < 6) return fail(res, 400, 'Password minimal 6 karakter.');
+    const created = await sbFetch('/auth/v1/admin/users', {
+      method: 'POST',
+      body: { email, password, email_confirm: true, user_metadata: { name } }
+    });
+    if (!created.ok) {
+      const msg = created.data?.msg || created.data?.message || (typeof created.data === 'string' ? created.data : '');
+      if (created.status === 422 || /already|registered|exist|duplicate/i.test(msg)) {
+        return fail(res, 409, 'Email sudah terdaftar. Silakan masuk.');
+      }
+      return fail(res, 400, msg || 'Gagal membuat akun.');
+    }
+    const granted = await authGrant({ email, password }, 'password');
+    if (!granted.ok) return fail(res, 400, 'Akun dibuat, tapi gagal masuk otomatis. Silakan masuk manual.');
+    const tokens = { access_token: granted.data.access_token, refresh_token: granted.data.refresh_token };
+    setCookie(res, tokens, req);
+    const user = publicUser(granted.data.user || created.data, tokens);
+    await getRow(user.uid, email, user.isAdmin, true);
+    await logEvent(user, 'register', { email, name });
+    return ok(res, { user });
+  }
+
+  if (p === '/api/auth/login' && method === 'POST') {
+    if (!checkMutation(req, res)) return;
+    const body = await readBody(req);
+    const email = String(body.email || '').trim().toLowerCase();
+    const password = String(body.password || '');
+    const granted = await authGrant({ email, password }, 'password');
+    if (!granted.ok) return fail(res, 401, 'Email atau password salah.');
+    const tokens = { access_token: granted.data.access_token, refresh_token: granted.data.refresh_token };
+    setCookie(res, tokens, req);
+    const user = publicUser(granted.data.user, tokens);
+    await getRow(user.uid, email, user.isAdmin, true);
+    await logEvent(user, 'login', { email });
+    return ok(res, { user });
+  }
+
+  if (p === '/api/auth/logout' && method === 'POST') {
+    if (!checkMutation(req, res)) return;
+    clearCookie(res, req);
+    return ok(res, {});
+  }
+
+  if (p === '/api/auth/session' && method === 'POST') {
+    if (!checkMutation(req, res)) return;
+    const body = await readBody(req);
+    const access = String(body.access_token || '');
+    const refresh = String(body.refresh_token || '');
+    if (!access) return fail(res, 400, 'Token tidak ada.');
+    const u = await authUser(access);
+    if (!u.ok) return fail(res, 401, 'Token tidak valid.');
+    const tokens = { access_token: access, refresh_token: refresh };
+    setCookie(res, tokens, req);
+    const user = publicUser(u.data, tokens);
+    await getRow(user.uid, user.email, user.isAdmin, true);
+    await logEvent(user, 'oauth_login', { email: user.email });
+    return ok(res, { user });
+  }
+
+  if (p === '/api/session' && method === 'GET') {
+    const s = await getSession(req, res);
+    return ok(res, { user: s ? s.user : null });
+  }
+
+  if (p === '/api/state') {
+    const s = await requireUser(req, res);
+    if (!s) return;
+    let keys;
+    try { keys = assertOwner(splitPath(url.searchParams.get('path')), s.user.uid, s.user.isAdmin); }
+    catch (err) { return fail(res, 400, err.message); }
+    const row = await getRow(s.user.uid, s.user.email, s.user.isAdmin, true);
+    const raw = row.data && typeof row.data === 'object' ? row.data : {};
+    const data = decryptCredentials(raw); // work on plaintext credentials in memory
+    if (method === 'GET') {
+      const value = keys.length ? getAt(data, keys) : data;
+      return ok(res, { value: value === undefined ? null : value });
+    }
+    if (!checkMutation(req, res)) return;
+    const body = await readBody(req);
+    let next;
+    if (method === 'PUT') {
+      next = keys.length ? setAt({ ...data }, keys, body.value) : setAt({}, [], body.value);
+    } else if (method === 'PATCH') {
+      next = keys.length ? updateAt({ ...data }, keys, body.patch) : updateAt({ ...data }, [], body.patch);
+    } else if (method === 'DELETE') {
+      next = keys.length ? deleteAt({ ...data }, keys) : {};
+    } else {
+      return fail(res, 405, 'Metode tidak didukung.');
+    }
+
+    // A bot start/stop is a real persisted command, recorded in the audit log
+    // and consumed by the MT5 bridge worker through /api/admin/commands.
+    if (method === 'PATCH' && body.patch && typeof body.patch.botRunning === 'boolean'
+        && keys.join('/').includes('accounts/')) {
+      await logEvent(s.user, body.patch.botRunning ? 'bot_start' : 'bot_stop', {
+        path: keys.join('/'), target: keys[1] || s.user.uid
+      });
+    }
+
+    const saved = await saveRow(row, encryptCredentials(next)); // never store plaintext
+    if (!saved.ok) return fail(res, 502, 'Gagal menyimpan data ke database.');
+    const value = keys.length ? getAt(next, keys) : next;
+    return ok(res, { value: value === undefined ? null : value });
+  }
+
+  if (p === '/api/admin/users' && method === 'GET') {
+    const s = await requireAdmin(req, res);
+    if (!s) return;
+    const r = await sbFetch('/rest/v1/titan_vault_users?select=*&order=created_at.desc');
+    const rows = Array.isArray(r.data) ? r.data : [];
+    const users = rows.map((row) => {
+      const d = row.data && typeof row.data === 'object' ? row.data : {};
+      const accounts = d.accounts && typeof d.accounts === 'object' ? d.accounts : {};
+      return {
+        uid: row.uid,
+        email: row.email,
+        name: d.name || '',
+        plan: d.plan || 'bronze',
+        status: d.status || 'pending',
+        startedDate: d.startedDate || null,
+        renewalDate: d.renewalDate || null,
+        accountCount: Object.keys(accounts).length,
+        botsRunning: Object.values(accounts).filter((a) => a && a.botRunning).length,
+        payments: d.payments && typeof d.payments === 'object' ? d.payments : {},
+        createdAt: row.created_at
+      };
+    });
+    return ok(res, { users });
+  }
+
+  if (p.startsWith('/api/admin/users/') && method === 'PATCH') {
+    const s = await requireAdmin(req, res);
+    if (!s) return;
+    if (!checkMutation(req, res)) return;
+    const uid = p.split('/').pop();
+    const row = await getRow(uid, '', false, false);
+    if (!row) return fail(res, 404, 'Pengguna tidak ditemukan.');
+    const body = await readBody(req);
+    const data = { ...(row.data && typeof row.data === 'object' ? row.data : {}) };
+
+    if (['pro', 'bronze', 'platinum'].includes(body.plan)) data.plan = body.plan;
+    if (['active', 'pending', 'inactive'].includes(body.status)) {
+      data.status = body.status;
+      const now = new Date();
+      if (body.status === 'active') {
+        if (!data.startedDate) data.startedDate = now.toISOString();
+        if (!data.renewalDate) data.renewalDate = new Date(now.getTime() + 30 * 86400000).toISOString();
+      }
+      if (body.status !== 'active' && data.accounts && typeof data.accounts === 'object') {
+        Object.keys(data.accounts).forEach((k) => {
+          if (data.accounts[k] && typeof data.accounts[k] === 'object') data.accounts[k].botRunning = false;
+        });
+      }
+    }
+    if (body.startedDate) data.startedDate = String(body.startedDate).slice(0, 60);
+    if (body.renewalDate) data.renewalDate = String(body.renewalDate).slice(0, 60);
+    if (body.approvePaymentKey && data.payments && data.payments[body.approvePaymentKey]) {
+      data.payments[body.approvePaymentKey].status = 'active';
+    }
+    if (body.rejectPaymentKey && data.payments && data.payments[body.rejectPaymentKey]) {
+      data.payments[body.rejectPaymentKey].status = 'rejected';
+    }
+
+    const saved = await saveRow(row, data);
+    if (!saved.ok) return fail(res, 502, 'Gagal menyimpan perubahan.');
+    await logEvent(s.user, 'admin_update_user', { uid, plan: data.plan, status: data.status });
+    return ok(res, { uid, plan: data.plan, status: data.status });
+  }
+
+  // Real control-plane feed: the MT5 bridge worker polls this endpoint to pick
+  // up start/stop commands. Broker passwords are never returned here.
+  if (p === '/api/admin/commands' && method === 'GET') {
+    const s = await requireAdmin(req, res);
+    if (!s) return;
+    const r = await sbFetch('/rest/v1/titan_vault_users?select=uid,email,data');
+    const rows = Array.isArray(r.data) ? r.data : [];
+    const commands = [];
+    for (const row of rows) {
+      const d = row.data && typeof row.data === 'object' ? row.data : {};
+      if (d.status !== 'active') continue;
+      const accounts = d.accounts && typeof d.accounts === 'object' ? d.accounts : {};
+      for (const [accId, acc] of Object.entries(accounts)) {
+        if (!acc || typeof acc !== 'object') continue;
+        commands.push({
+          uid: row.uid,
+          email: row.email,
+          accountId: accId,
+          accountName: acc.name || '',
+          broker: acc.broker || '',
+          platform: acc.platform || 'MT5',
+          server: acc.server || '',
+          login: acc.login || '',
+          running: !!acc.botRunning
+        });
+      }
+    }
+    return ok(res, { commands, generatedAt: new Date().toISOString() });
+  }
+
+  if (p === '/api/admin/events' && method === 'GET') {
+    const s = await requireAdmin(req, res);
+    if (!s) return;
+    const r = await sbFetch('/rest/v1/titan_vault_events?select=*&order=created_at.desc&limit=100');
+    return ok(res, { events: Array.isArray(r.data) ? r.data : [] });
+  }
+
+  return fail(res, 404, 'Endpoint tidak ditemukan.', 'not_found');
 }
 
-function enrichAccount(acc) {
-  return { ...acc, simulated: true };
-}
-
-function clientOverview(user) {
-  const accounts = accountsForUser(user.id).map(enrichAccount);
-  const payments = paymentsForUser(user.id);
-  const plan = planForUser(user);
-  const logs = getDb().logs.filter((l) => l.actorId === user.id).slice(0, 30);
-  return {
-    user: publicUser(user),
-    plan,
-    accounts,
-    payments,
-    logs,
-    stats: {
-      accountCount: accounts.length,
-      accountLimit: accountLimitForUser(user),
-      runningBots: accounts.filter((a) => a.bot?.state === 'running').length,
-      pendingPayments: payments.filter((p) => p.status === 'pending').length,
-      subscriptionActive: isSubscriptionActive(user) && user.status === 'active'
-    },
-    demoNotice: DEMO_NOTICE
-  };
-}
-
-function adminOverview() {
-  const d = getDb();
-  const users = d.users.map((u) => ({
-    ...publicUser(u),
-    planName: findPlan(u.subscription?.planId)?.name || '-',
-    accountCount: accountsForUser(u.id).length,
-    runningBots: accountsForUser(u.id).filter((a) => a.bot?.state === 'running').length
-  }));
-  const payments = d.payments.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((p) => ({
-    ...p,
-    userName: findUserById(p.userId)?.name || 'Tidak diketahui',
-    userEmail: findUserById(p.userId)?.email || '',
-    planName: findPlan(p.planId)?.name || p.planId
-  }));
-  return {
-    stats: {
-      totalUsers: d.users.length,
-      activeSubscriptions: d.users.filter((u) => u.role === 'client' && isSubscriptionActive(u) && u.status === 'active').length,
-      pendingPayments: d.payments.filter((p) => p.status === 'pending').length,
-      approvedRevenueIdr: d.payments.filter((p) => p.status === 'approved').reduce((sum, p) => sum + p.amountIdr, 0),
-      runningBots: d.accounts.filter((a) => a.bot?.state === 'running').length,
-      totalAccounts: d.accounts.length
-    },
-    users,
-    payments,
-    plans: d.plans,
-    logs: d.logs.slice(0, 100).map((l) => ({ ...l, actorEmail: l.actorId ? findUserById(l.actorId)?.email || '' : '' })),
-    demoNotice: DEMO_NOTICE
-  };
-}
-
-function validateAccountInput(body) {
-  const label = str(body.label, 80);
-  const broker = str(body.broker, 80);
-  const platform = str(body.platform, 10).toUpperCase();
-  const server = str(body.server, 120);
-  const loginId = str(body.loginId, 80);
-  const notes = str(body.notes, 500);
-  const risk = ['conservative', 'balanced', 'aggressive'].includes(body.risk) ? body.risk : 'balanced';
-  if (!label) throw new Error('Nama akun wajib diisi.');
-  if (!broker) throw new Error('Nama broker demo wajib diisi.');
-  if (!['MT4', 'MT5'].includes(platform)) throw new Error('Platform harus MT4 atau MT5.');
-  if (!server) throw new Error('Server demo wajib diisi.');
-  if (!loginId) throw new Error('ID login demo wajib diisi.');
-  if (/password|pass|pwd/i.test(loginId)) throw new Error('Jangan masukkan password broker. Gunakan ID demo saja.');
-  return { label, broker, platform, server, loginId, notes, risk };
-}
-
+/* --------------------------------------------------------------- static */
 function serveStatic(req, res, pathname) {
-  let filePath;
-  if (pathname === '/' || pathname === '/index.html') filePath = path.join(PUBLIC_DIR, 'index.html');
-  else if (pathname === '/app' || pathname === '/app.html') filePath = path.join(PUBLIC_DIR, 'app.html');
-  else if (pathname === '/admin' || pathname === '/admin.html') filePath = path.join(PUBLIC_DIR, 'admin.html');
-  else {
-    const safe = path.normalize(pathname).replace(/^(\.\.[/\\])+/, '');
-    filePath = path.join(PUBLIC_DIR, safe);
-  }
+  let rel;
+  if (pathname === '/' || pathname === '/index.html' || pathname === '/app' || pathname === '/app.html') rel = 'index.html';
+  else if (pathname === '/admin' || pathname === '/admin.html') rel = 'admin.html';
+  else if (pathname === '/auth/callback.html' || pathname === '/auth-callback.html') rel = 'auth-callback.html';
+  else rel = pathname.replace(/^\/+/, '');
+  const filePath = path.join(PUBLIC_DIR, path.normalize(rel));
   if (!filePath.startsWith(PUBLIC_DIR)) return fail(res, 403, 'Akses ditolak.', 'forbidden');
   fs.readFile(filePath, (err, data) => {
     if (err) return fail(res, 404, 'Tidak ditemukan.', 'not_found');
     const ext = path.extname(filePath).toLowerCase();
     const types = {
-      '.html': 'text/html; charset=utf-8',
-      '.css': 'text/css; charset=utf-8',
-      '.js': 'text/javascript; charset=utf-8',
-      '.svg': 'image/svg+xml',
-      '.json': 'application/json; charset=utf-8',
-      '.png': 'image/png',
-      '.ico': 'image/x-icon'
+      '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
+      '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
+      '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
+      '.zip': 'application/zip', '.txt': 'text/plain; charset=utf-8'
     };
     res.writeHead(200, {
       'Content-Type': types[ext] || 'application/octet-stream',
@@ -308,440 +559,20 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-async function handleApi(req, res, url) {
-  const p = url.pathname;
-  const method = req.method;
-  const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
-  const publicAuth = p === '/api/auth/login' || p === '/api/auth/register' || p === '/api/auth/recover-admin' || p === '/api/pilot/heartbeat';
-  let ctx = null;
-  if (isMutation && !publicAuth) {
-    ctx = requireAuth(req, res);
-    if (!ctx) return;
-    if (!checkCsrf(req, res, ctx)) return;
-  } else if (!publicAuth && p !== '/api/health' && p !== '/api/bootstrap') {
-    ctx = requireAuth(req, res);
-    if (!ctx) return;
-  }
-  let body = {};
-  if (isMutation) {
-    try {
-      body = await readBody(req);
-    } catch (err) {
-      return fail(res, 400, err.message, 'bad_body');
-    }
-  }
-
-  // Pilot credentials are independent of the public demo admin password.
-  // A laptop generates both random values; the browser must provide them for every command.
-  if (p.startsWith('/api/pilot/') && method === 'POST') {
-    const deviceId = String(body.deviceId || '');
-    const secret = String(body.secret || '');
-    if (!/^[a-f0-9]{32}$/.test(deviceId) || !/^[a-f0-9]{64}$/.test(secret)) return fail(res, 400, 'ID atau kunci laptop tidak valid.');
-    if (p !== '/api/pilot/heartbeat' && (!ctx || ctx.user.role !== 'admin')) return fail(res, 403, 'Akses admin diperlukan.');
-    const db = getDb();
-    db.pilotDevices ||= [];
-    let device = db.pilotDevices.find(x => x.deviceId === deviceId);
-    const hash = sha256(secret);
-    const matches = device && crypto.timingSafeEqual(Buffer.from(device.secretHash, 'hex'), Buffer.from(hash, 'hex'));
-    if (p === '/api/pilot/register') {
-      if (device && !matches) return fail(res, 403, 'Kunci laptop tidak cocok.');
-      if (!device) {
-        if (db.pilotDevices.length >= 20) return fail(res, 400, 'Batas perangkat tercapai.');
-        device = {deviceId, secretHash:hash, leaseUntil:0, lastSeen:0, status:null};
-        db.pilotDevices.push(device); save();
-      }
-      return ok(res, {paired:true});
-    }
-    if (!matches) return fail(res, 403, 'Perangkat belum terdaftar atau kunci tidak cocok.');
-    if (p === '/api/pilot/heartbeat') {
-      // Never store broker login, server, credential, or arbitrary client-provided text.
-      const st = body.status || {};
-      const finite = v => typeof v === 'number' && Number.isFinite(v) ? v : null;
-      device.lastSeen = Date.now();
-      device.status = {connected: st.connected === true, demo: st.demo === true, ready: st.ready === true,
-        enabled: st.enabled === true, balance: finite(st.balance), equity: finite(st.equity),
-        positions: Number.isInteger(st.positions) && st.positions >= 0 && st.positions <= 10000 ? st.positions : null,
-        protocol: st.protocol === 4 ? 4 : (st.protocol === 3 ? 3 : (st.protocol === 2 ? 2 : 1)), quoteOkXau: st.quoteOkXau === true, quoteOkBtc: st.quoteOkBtc === true, btcNoDailyLimit: st.btcNoDailyLimit === true,
-        state: ['stopped','running','blocked'].includes(st.state) ? st.state : 'stopped'};
-      const selectedQuoteOk = device.symbol === '#BTCUSD' ? device.status.quoteOkBtc : device.status.quoteOkXau;
-      if (!PILOT_DEMO_ENABLED || body.boot === true || (device.status.protocol < 3 || (device.symbol === '#BTCUSD' && device.status.protocol < 4)) || !device.status.connected || !device.status.demo || !device.status.ready || !device.status.enabled || device.status.state === 'blocked' || !selectedQuoteOk) device.leaseUntil=0;
-      save();
-      return ok(res, {run: device.leaseUntil > Date.now(), symbol: device.symbol || 'XAUUSD', leaseMs: Math.max(0, Math.min(35000, device.leaseUntil - Date.now()))});
-    }
-    if (p === '/api/pilot/status') {
-      return ok(res, {online: Date.now()-device.lastSeen < 30000, lastSeen:device.lastSeen,
-        status:device.status, symbol:device.symbol || 'XAUUSD', runningRequested:device.leaseUntil > Date.now()});
-    }
-    if (p === '/api/pilot/control') {
-      if (body.action === 'stop') {device.leaseUntil=0; save(); return ok(res,{runningRequested:false});}
-      if (!['start','renew'].includes(body.action)) return fail(res,400,'Perintah tidak dikenal.');
-      if (!PILOT_DEMO_ENABLED) return fail(res,400,'Order demo sedang dinonaktifkan.');
-      if (body.action === 'renew' && device.leaseUntil <= Date.now()) return fail(res,400,'Izin berjalan berakhir; tekan Start lagi.');
-      const symbol = body.symbol || 'XAUUSD';
-      if (!['XAUUSD','#BTCUSD'].includes(symbol)) return fail(res,400,'Simbol tidak didukung.');
-      if ((device.status?.protocol || 0) < (symbol === '#BTCUSD' ? 4 : 3)) return fail(res,400,'Perbarui penghubung laptop sebelum menjalankan bot demo.');
-      if (body.action === 'renew' && symbol !== (device.symbol || 'XAUUSD')) return fail(res,400,'Simbol berbeda; hentikan bot sebelum mengganti.');
-      if (body.action === 'start' && device.leaseUntil > Date.now() && symbol !== (device.symbol || 'XAUUSD')) return fail(res,400,'Hentikan bot sebelum mengganti simbol.');
-      if ((symbol === '#BTCUSD' && !device.status?.quoteOkBtc) || (symbol === 'XAUUSD' && !device.status?.quoteOkXau)) return fail(res,400,'Harga tidak segar atau waktu tick tidak valid; order diblokir.');
-      if (Date.now()-device.lastSeen >= 30000 || !device.status?.connected || !device.status?.demo || !device.status?.ready || !device.status?.enabled || device.status?.state === 'blocked')
-        return fail(res,400,'Laptop belum online, akun demo belum siap, atau bot sedang diblokir.');
-      device.symbol=symbol; device.leaseUntil=Date.now()+35000; save();
-      return ok(res, {runningRequested:true});
-    }
-    return fail(res,404,'Perintah tidak ditemukan.');
-  }
-
-  if (p === '/api/health' && method === 'GET') return ok(res, { status: 'healthy', demo: true, time: now() });
-  if (p === '/api/bootstrap' && method === 'GET') {
-    return ok(res, { plans: getDb().plans.filter((x) => x.active), paymentMethods: PAYMENT_METHODS, demoNotice: DEMO_NOTICE });
-  }
-
-  if (p === '/api/auth/recover-admin' && method === 'POST') {
-    // A recovery record is provisioned out-of-band; old admin access stays
-    // disabled while a record exists, including if the code has expired.
-    const d = getDb(), recovery = d.adminRecovery;
-    const code = typeof body.code === 'string' ? body.code : '';
-    const password = typeof body.password === 'string' ? body.password : '';
-    if (!recovery || !/^[a-f0-9]{64}$/.test(code) ||
-        !/^[a-f0-9]{64}$/.test(String(recovery.codeHash || '')) ||
-        !Number.isFinite(Date.parse(recovery.expiresAt)) || Date.parse(recovery.expiresAt) <= Date.now() ||
-        !crypto.timingSafeEqual(Buffer.from(sha256(code), 'hex'), Buffer.from(recovery.codeHash, 'hex')))
-      return fail(res, 400, 'Kode pemulihan tidak valid atau kedaluwarsa.');
-    const admin = d.users.find(u => u.id === recovery.userId && u.role === 'admin');
-    if (!admin) return fail(res, 400, 'Akun pemulihan tidak tersedia.');
-    if (password.length < 16 || password.length > 128 || /^(.)\1+$/.test(password) ||
-        password.toLowerCase() === String(admin.email || '').toLowerCase())
-      return fail(res, 400, 'Pilih password baru 16–128 karakter yang tidak mudah ditebak.');
-    admin.passwordHash = hashPassword(password);
-    d.sessions = d.sessions.filter(s => s.userId !== admin.id);
-    d.pilotDevices = [];
-    delete d.adminRecovery;
-    logEvent({ actorId: admin.id, actorRole:'admin', action:'admin.recovered', targetType:'user', targetId:admin.id,
-      message:'Akses admin dipulihkan dan pairing lama dicabut.' });
-    save();
-    clearCookie(res);
-    return ok(res,{message:'Password diperbarui; silakan masuk lagi.'});
-  }
-
-  if (p === '/api/auth/register' && method === 'POST') {
-    const name = str(body.name, 80);
-    const email = str(body.email, 160).toLowerCase();
-    const password = String(body.password || '');
-    if (name.length < 2) return fail(res, 400, 'Nama minimal 2 karakter.');
-    if (!validEmail(email)) return fail(res, 400, 'Email tidak valid.');
-    if (password.length < 10) return fail(res, 400, 'Password minimal 10 karakter.');
-    if (findUserByEmail(email)) return fail(res, 409, 'Email sudah terdaftar.');
-    const user = {
-      id: id('usr'), name, email, passwordHash: hashPassword(password), role: 'client', status: 'active', createdAt: now(),
-      profile: { phone: '', company: '', notes: '' },
-      subscription: { planId: 'starter', status: 'pending', startedAt: null, renewalAt: null, activatedBy: null }
-    };
-    getDb().users.push(user);
-    logEvent({ actorId: user.id, actorRole: 'client', action: 'auth.register', targetType: 'user', targetId: user.id, message: 'Pendaftaran demo berhasil.' });
-    const { token, session } = createSession(user);
-    save();
-    setCookie(res, token);
-    return ok(res, { user: publicUser(user), csrfToken: session.csrf, sessionToken: token });
-  }
-
-  if (p === '/api/auth/login' && method === 'POST') {
-    const email = str(body.email, 160).toLowerCase();
-    const password = String(body.password || '');
-    const ip = req.socket.remoteAddress || 'unknown';
-    if (!rateLimit(`${ip}:${email}`)) return fail(res, 429, 'Terlalu banyak percobaan masuk. Coba lagi nanti.', 'rate_limited');
-    const user = findUserByEmail(email);
-    if (!user || !verifyPassword(password, user.passwordHash)) return fail(res, 401, 'Email atau password salah.', 'invalid_credentials');
-    if (user.role === 'admin' && getDb().adminRecovery?.userId === user.id)
-      return fail(res, 403, 'Akses admin dikunci sementara untuk pemulihan.');
-    const { token, session } = createSession(user);
-    logEvent({ actorId: user.id, actorRole: user.role, action: 'auth.login', targetType: 'user', targetId: user.id, message: 'Masuk ke portal demo.' });
-    save();
-    setCookie(res, token);
-    return ok(res, { user: publicUser(user), csrfToken: session.csrf, sessionToken: token });
-  }
-
-  if (p === '/api/auth/logout' && method === 'POST') {
-    destroySession(req);
-    clearCookie(res);
-    return ok(res);
-  }
-
-  if (p === '/api/me' && method === 'GET') {
-    return ok(res, { user: publicUser(ctx.user), csrfToken: ctx.session.csrf, demoNotice: DEMO_NOTICE });
-  }
-
-  if (p === '/api/client/overview' && method === 'GET') return ok(res, clientOverview(ctx.user));
-
-  if (p === '/api/client/profile' && method === 'PATCH') {
-    const name = str(body.name, 80);
-    if (name.length < 2) return fail(res, 400, 'Nama minimal 2 karakter.');
-    ctx.user.name = name;
-    ctx.user.profile = {
-      phone: str(body.phone, 40),
-      company: str(body.company, 100),
-      notes: str(body.notes, 500)
-    };
-    logEvent({ actorId: ctx.user.id, actorRole: ctx.user.role, action: 'profile.update', targetType: 'user', targetId: ctx.user.id, message: 'Profil diperbarui.' });
-    save();
-    return ok(res, { user: publicUser(ctx.user) });
-  }
-
-  if (p === '/api/client/accounts' && method === 'GET') return ok(res, { accounts: accountsForUser(ctx.user.id).map(enrichAccount) });
-
-  if (p === '/api/client/accounts' && method === 'POST') {
-    let input;
-    try { input = validateAccountInput(body); } catch (err) { return fail(res, 400, err.message); }
-    const limit = accountLimitForUser(ctx.user);
-    const count = accountsForUser(ctx.user.id).length;
-    if (limit > 0 && count >= limit) return fail(res, 403, `Batas paket ${planForUser(ctx.user).name} adalah ${limit} akun.`, 'plan_limit');
-    const acc = {
-      id: id('acc'), userId: ctx.user.id, ...input,
-      bot: { state: 'stopped', startedAt: null, stoppedAt: null, lastTick: null, equityDemo: 1000, pnlDemo: 0, tradesDemo: 0 },
-      createdAt: now()
-    };
-    getDb().accounts.push(acc);
-    logEvent({ actorId: ctx.user.id, actorRole: ctx.user.role, action: 'account.create', targetType: 'account', targetId: acc.id, message: `Akun demo ${acc.label} ditambahkan.` });
-    save();
-    return ok(res, { account: enrichAccount(acc) });
-  }
-
-  const accountMatch = p.match(/^\/api\/client\/accounts\/([\w-]+)$/);
-  if (accountMatch) {
-    const acc = getDb().accounts.find((a) => a.id === accountMatch[1] && a.userId === ctx.user.id);
-    if (!acc) return fail(res, 404, 'Akun tidak ditemukan.', 'not_found');
-    if (method === 'PATCH') {
-      let input;
-      try { input = validateAccountInput(body); } catch (err) { return fail(res, 400, err.message); }
-      Object.assign(acc, input);
-      logEvent({ actorId: ctx.user.id, actorRole: ctx.user.role, action: 'account.update', targetType: 'account', targetId: acc.id, message: `Akun demo ${acc.label} diperbarui.` });
-      save();
-      return ok(res, { account: enrichAccount(acc) });
-    }
-    if (method === 'DELETE') {
-      getDb().accounts = getDb().accounts.filter((a) => a.id !== acc.id);
-      logEvent({ actorId: ctx.user.id, actorRole: ctx.user.role, action: 'account.delete', targetType: 'account', targetId: acc.id, message: `Akun demo ${acc.label} dihapus.` });
-      save();
-      return ok(res);
-    }
-  }
-
-  const botMatch = p.match(/^\/api\/client\/accounts\/([\w-]+)\/bot$/);
-  if (botMatch && method === 'POST') {
-    const acc = getDb().accounts.find((a) => a.id === botMatch[1] && a.userId === ctx.user.id);
-    if (!acc) return fail(res, 404, 'Akun tidak ditemukan.', 'not_found');
-    const action = str(body.action, 10);
-    if (!['start', 'stop'].includes(action)) return fail(res, 400, 'Aksi harus start atau stop.');
-    if (action === 'start') {
-      if (ctx.user.status !== 'active') return fail(res, 403, 'Akun portal ditangguhkan.', 'suspended');
-      if (!isSubscriptionActive(ctx.user)) return fail(res, 403, 'Langganan belum aktif atau sudah kedaluwarsa.', 'subscription_inactive');
-      acc.bot.state = 'running';
-      acc.bot.startedAt = now();
-      acc.bot.stoppedAt = null;
-      acc.bot.lastTick = now();
-      acc.bot.stopReason = '';
-      logEvent({ actorId: ctx.user.id, actorRole: ctx.user.role, action: 'bot.start', targetType: 'account', targetId: acc.id, message: `Bot simulasi dijalankan pada ${acc.label}.`, meta: { simulated: true } });
-    } else {
-      stopAccount(acc, 'user_stopped');
-      logEvent({ actorId: ctx.user.id, actorRole: ctx.user.role, action: 'bot.stop', targetType: 'account', targetId: acc.id, message: `Bot simulasi dihentikan pada ${acc.label}.`, meta: { simulated: true } });
-    }
-    save();
-    return ok(res, { account: enrichAccount(acc) });
-  }
-
-  if (p === '/api/client/payments' && method === 'GET') return ok(res, { payments: paymentsForUser(ctx.user.id) });
-
-  if (p === '/api/client/payments' && method === 'POST') {
-    const planId = str(body.planId, 40);
-    const plan = findPlan(planId);
-    if (!plan || !plan.active) return fail(res, 400, 'Paket tidak tersedia.');
-    const methodId = str(body.method, 40);
-    if (!PAYMENT_METHODS.some((m) => m.id === methodId)) return fail(res, 400, 'Metode pembayaran demo tidak valid.');
-    const senderName = str(body.senderName, 100);
-    const reference = str(body.reference, 120);
-    const note = str(body.note, 500);
-    if (!senderName) return fail(res, 400, 'Nama pengirim demo wajib diisi.');
-    if (!reference) return fail(res, 400, 'Referensi demo wajib diisi.');
-    const payment = {
-      id: id('pay'), userId: ctx.user.id, planId, amountIdr: plan.priceIdr, method: methodId,
-      senderName, reference, note, status: 'pending', createdAt: now(), reviewedAt: null, reviewedBy: null, rejectReason: ''
-    };
-    getDb().payments.push(payment);
-    logEvent({ actorId: ctx.user.id, actorRole: ctx.user.role, action: 'payment.submit', targetType: 'payment', targetId: payment.id, message: `Konfirmasi pembayaran demo untuk paket ${plan.name} dikirim.` });
-    save();
-    return ok(res, { payment });
-  }
-
-  if (p === '/api/client/logs' && method === 'GET') {
-    return ok(res, { logs: getDb().logs.filter((l) => l.actorId === ctx.user.id).slice(0, 100) });
-  }
-
-  if (p === '/api/admin/overview' && method === 'GET') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    return ok(res, adminOverview());
-  }
-
-  if (p === '/api/admin/users' && method === 'GET') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    return ok(res, { users: adminOverview().users });
-  }
-
-  const adminUserMatch = p.match(/^\/api\/admin\/users\/([\w-]+)$/);
-  if (adminUserMatch && method === 'PATCH') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    const user = findUserById(adminUserMatch[1]);
-    if (!user) return fail(res, 404, 'Pengguna tidak ditemukan.', 'not_found');
-    const status = str(body.status, 20);
-    if (!['active', 'suspended'].includes(status)) return fail(res, 400, 'Status harus active atau suspended.');
-    if (user.role === 'admin' && user.id === ctx.user.id && status !== 'active') return fail(res, 400, 'Tidak bisa menangguhkan diri sendiri.');
-    user.status = status;
-    if (status !== 'active') {
-      for (const acc of accountsForUser(user.id)) stopAccount(acc, 'user_suspended');
-    }
-    logEvent({ actorId: ctx.user.id, actorRole: 'admin', action: 'admin.user_status', targetType: 'user', targetId: user.id, message: `Status pengguna ${user.email} menjadi ${status}.` });
-    save();
-    return ok(res, { user: publicUser(user) });
-  }
-
-  const adminActivateMatch = p.match(/^\/api\/admin\/users\/([\w-]+)\/activate$/);
-  if (adminActivateMatch && method === 'POST') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    const user = findUserById(adminActivateMatch[1]);
-    if (!user) return fail(res, 404, 'Pengguna tidak ditemukan.', 'not_found');
-    const planId = str(body.planId, 40) || user.subscription?.planId || 'starter';
-    const plan = findPlan(planId);
-    if (!plan) return fail(res, 400, 'Paket tidak ditemukan.');
-    const days = Math.max(1, Math.min(3650, Number(body.days) || plan.periodDays));
-    user.subscription = {
-      planId, status: 'active', startedAt: user.subscription?.startedAt || now(), renewalAt: addDays(now(), days), activatedBy: ctx.user.id
-    };
-    user.status = 'active';
-    logEvent({ actorId: ctx.user.id, actorRole: 'admin', action: 'admin.activate', targetType: 'user', targetId: user.id, message: `Langganan ${plan.name} untuk ${user.email} diaktifkan selama ${days} hari.` });
-    save();
-    return ok(res, { user: publicUser(user) });
-  }
-
-  const adminDeactivateMatch = p.match(/^\/api\/admin\/users\/([\w-]+)\/deactivate$/);
-  if (adminDeactivateMatch && method === 'POST') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    const user = findUserById(adminDeactivateMatch[1]);
-    if (!user) return fail(res, 404, 'Pengguna tidak ditemukan.', 'not_found');
-    user.subscription = { ...(user.subscription || {}), status: 'inactive', renewalAt: now() };
-    for (const acc of accountsForUser(user.id)) stopAccount(acc, 'subscription_inactive');
-    logEvent({ actorId: ctx.user.id, actorRole: 'admin', action: 'admin.deactivate', targetType: 'user', targetId: user.id, message: `Langganan ${user.email} dinonaktifkan.` });
-    save();
-    return ok(res, { user: publicUser(user) });
-  }
-
-  if (p === '/api/admin/payments' && method === 'GET') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    return ok(res, { payments: adminOverview().payments });
-  }
-
-  const paymentReviewMatch = p.match(/^\/api\/admin\/payments\/([\w-]+)\/(approve|reject)$/);
-  if (paymentReviewMatch && method === 'POST') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    const payment = getDb().payments.find((x) => x.id === paymentReviewMatch[1]);
-    if (!payment) return fail(res, 404, 'Pembayaran tidak ditemukan.', 'not_found');
-    if (payment.status !== 'pending') return fail(res, 409, 'Pembayaran sudah ditinjau.', 'already_reviewed');
-    const user = findUserById(payment.userId);
-    const plan = findPlan(payment.planId);
-    if (!user || !plan) return fail(res, 400, 'Data pembayaran tidak lengkap.');
-    const decision = paymentReviewMatch[2];
-    payment.reviewedAt = now();
-    payment.reviewedBy = ctx.user.id;
-    if (decision === 'approve') {
-      payment.status = 'approved';
-      user.subscription = {
-        planId: plan.id,
-        status: 'active',
-        startedAt: user.subscription?.startedAt || now(),
-        renewalAt: addDays(now(), plan.periodDays),
-        activatedBy: ctx.user.id
-      };
-      user.status = 'active';
-      logEvent({ actorId: ctx.user.id, actorRole: 'admin', action: 'payment.approve', targetType: 'payment', targetId: payment.id, message: `Pembayaran demo ${payment.reference} disetujui; paket ${plan.name} aktif.` });
-    } else {
-      const reason = str(body.reason, 300);
-      if (!reason) return fail(res, 400, 'Alasan penolakan wajib diisi.');
-      payment.status = 'rejected';
-      payment.rejectReason = reason;
-      logEvent({ actorId: ctx.user.id, actorRole: 'admin', action: 'payment.reject', targetType: 'payment', targetId: payment.id, message: `Pembayaran demo ${payment.reference} ditolak: ${reason}` });
-    }
-    save();
-    return ok(res, { payment });
-  }
-
-  if (p === '/api/admin/logs' && method === 'GET') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    return ok(res, { logs: adminOverview().logs });
-  }
-
-  const adminPlanMatch = p.match(/^\/api\/admin\/plans\/([\w-]+)$/);
-  if (adminPlanMatch && method === 'PATCH') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    const plan = findPlan(adminPlanMatch[1]);
-    if (!plan) return fail(res, 404, 'Paket tidak ditemukan.', 'not_found');
-    if (body.name !== undefined) plan.name = str(body.name, 60) || plan.name;
-    if (body.priceIdr !== undefined) {
-      const price = Number(body.priceIdr);
-      if (!Number.isFinite(price) || price < 0) return fail(res, 400, 'Harga tidak valid.');
-      plan.priceIdr = Math.round(price);
-    }
-    if (body.accountLimit !== undefined) {
-      const limit = Number(body.accountLimit);
-      if (!Number.isInteger(limit) || limit < 0) return fail(res, 400, 'Batas akun harus integer >= 0. 0 berarti tanpa batas.');
-      plan.accountLimit = limit;
-    }
-    if (body.active !== undefined) plan.active = Boolean(body.active);
-    logEvent({ actorId: ctx.user.id, actorRole: 'admin', action: 'admin.plan_update', targetType: 'plan', targetId: plan.id, message: `Paket ${plan.name} diperbarui.` });
-    save();
-    return ok(res, { plan });
-  }
-
-  if (p === '/api/admin/reset-demo' && method === 'POST') {
-    if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    return fail(res, 403, 'Reset demo dinonaktifkan selama pengamanan; data tidak diubah.');
-  }
-
-  return fail(res, 404, 'Endpoint tidak ditemukan.', 'not_found');
-}
-
+/* --------------------------------------------------------------- handler */
 export async function handler(req, res) {
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try {
-    if (url.pathname.startsWith('/api/')) {
-      await withRemoteState(req, res, (response) => handleApi(req, response, url));
-      return;
-    }
-    if (!['GET', 'HEAD'].includes(req.method)) return fail(res, 405, 'Metode tidak diizinkan.', 'method_not_allowed');
-    serveStatic(req, res, url.pathname);
+    const url = new URL(req.url || '/', 'http://localhost');
+    const method = req.method || 'GET';
+    if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url, method, url.pathname);
+    return serveStatic(req, res, url.pathname);
   } catch (err) {
-    console.error(err);
-    if (!res.headersSent) fail(res, 500, 'Terjadi kesalahan server.', 'server_error');
-    else res.end();
+    console.error('[titan-vault]', err);
+    return fail(res, 500, err?.message || 'Kesalahan server.', 'server_error');
   }
 }
 
-if (!remoteEnabled) setInterval(() => {
-  try {
-    const d = getDb();
-    let changed = false;
-    for (const user of d.users) {
-      if (user.subscription?.status === 'active' && user.subscription.renewalAt && new Date(user.subscription.renewalAt).getTime() <= Date.now()) {
-        user.subscription.status = 'expired';
-        for (const acc of accountsForUser(user.id)) stopAccount(acc, 'subscription_expired');
-        logEvent({ actorRole: 'system', action: 'subscription.expired', targetType: 'user', targetId: user.id, message: `Langganan ${user.email} kedaluwarsa.` });
-        changed = true;
-      }
-    }
-    if (changed) save();
-    tickSimulation();
-  } catch (err) {
-    console.error('simulation tick error', err);
-  }
-}, 15000).unref();
-
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) http.createServer(handler).listen(PORT, HOST, () => {
-  console.log(`TitanTrading demo listening on http://${HOST}:${PORT}`);
-  console.log(DEMO_NOTICE);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  http.createServer((req, res) => { handler(req, res).catch(() => {}); })
+    .listen(PORT, HOST, () => console.log(`Titan Vault berjalan di http://${HOST}:${PORT}`));
+}

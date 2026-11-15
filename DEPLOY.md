@@ -1,44 +1,53 @@
-# Titan Trading — status & deployment
+# Deploy produksi Titan Vault
 
-## Selesai
-- ZIP asli diekstrak dan source diadaptasi untuk Vercel Functions.
-- Tabel `public.titan_demo_state` dibuat di Supabase Titan Trading.
-- RLS aktif; hanya service_role mendapat akses tabel, tidak ada policy publik.
-- State disimpan sebagai JSONB dengan revision check untuk mencegah lost update.
-- Environment production/preview sudah dipasang pada project Vercel `titan-trading`.
-- Uji lokal: 28/28; uji backend dengan Supabase nyata: 28/28 (sebelum pembatasan tick 15 detik).
+## Target
 
-## Belum selesai
-- Source tersedia di GitHub: https://github.com/arsatazmi/titan-trading (publik).
-- Belum ada deployment Vercel yang terverifikasi. Konektor tidak menyediakan
-  projectSettings/konfirmasi autodeteksi yang dapat diperlukan pada deployment pertama.
+| Item | Nilai |
+| --- | --- |
+| Proyek Vercel | `titan-trading` (`prj_bugsz8RLq80NIkn9FBALHiJEV9Rz`) |
+| Team | `team_fnvWqz7sFTrpEb6CTQKnriO7` |
+| Alias produksi | `titan-trading-puce.vercel.app` |
+| Supabase | `zwiatrbdvetqcjivqomo` (region `ap-southeast-1`) |
+| Branch kerja | `arena/e1b6686c-titan-trading` |
 
-## Alternatif upload GitHub (untuk repo baru)
-```sh
-gh auth login
-# Di folder source yang berisi package.json:
-git init -b main
-git add .
-git commit -m "Adapt Titan Trading demo for Vercel and Supabase"
-gh repo create titan-trading --public --source=. --remote=origin --push
+`taitanxbot.online` hanya referensi tampilan; domain itu tidak dipetakan ke proyek ini.
+
+## Konfigurasi yang sudah diterapkan
+
+1. Supabase Auth:
+   - `site_url = https://titan-trading-puce.vercel.app`
+   - URI allow list mencakup tiga alias Vercel + `http://localhost:3000` dan `:3001`
+   - `mailer_autoconfirm = true`, signup aktif, refresh-token rotation aktif
+   - Google OAuth masih nonaktif (lihat catatan di README)
+2. Migrasi `titan_vault_real_backend`: tabel `titan_vault_users` dan
+   `titan_vault_events` dengan RLS + grant `service_role` saja.
+3. Environment variables pada proyek Vercel: `SUPABASE_URL`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`,
+   `ADMIN_EMAILS`, `GOOGLE_OAUTH_ENABLED`.
+4. `vercel.json`: dua Serverless Function (`api/index.js`, `api/[...path].js`) dengan
+   `includeFiles: public/**`, rewrite `/admin` → `/admin.html`.
+
+## Cara deploy ulang
+
+Karena produksi Vercel terhubung ke branch `main`, sedangkan pekerjaan ini berada di
+branch Arena, deploy produksi dilakukan langsung dari file:
+
+```bash
+# melalui Vercel CLI (dari root repo)
+vercel --prod --yes
 ```
-Jika memakai repo lokal yang telah diinisialisasi dalam workspace, lewati init/add/commit.
-Jangan commit .env, data/, atau service role key.
 
-## Deploy dari dashboard Vercel
-1. Buka project titan-trading yang sudah ada, sambungkan repo GitHub yang baru.
-2. Preset Other, root folder tempat package.json berada, output directory `public`.
-3. Build command kosong; aplikasi tidak memerlukan dependencies.
-4. Environment SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY telah disiapkan
-   untuk production/preview. Jangan expose key ke browser.
-5. Deploy, lalu cek /, /app, /admin, /api/health serta login dan pembayaran simulasi.
+Atau lewat konektor Vercel: `create_deployment` dengan `target=production`,
+`project=prj_bugsz8RLq80NIkn9FBALHiJEV9Rz`, `team_id=team_fnvWqz7sFTrpEb6CTQKnriO7`
+dan seluruh file source sebagai `files`.
 
-## Peringatan
-Demo saja, bukan produksi. Password demo di README bersifat publik. Jangan
-masukkan data pribadi, kredensial broker asli, atau uang nyata. Admin demo
-bisa diakses pengunjung yang mengetahui kredensialnya, termasuk reset data.
-Rate limiter login masih in-memory per instance (tidak global/persisten).
-Simulasi berjalan saat API dipanggil, maksimal sekali per 15 detik, bukan worker trading.
-State satu dokumen cocok untuk demo, bukan arsitektur multi-user berskala besar.
-Konflik concurrent request mengembalikan 409 state_conflict tanpa menimpa state lain.
-Uji Supabase telah membuat/mengubah data demo. Tidak ada data nyata dimigrasikan.
+## Verifikasi setelah deploy
+
+```bash
+curl -s https://titan-trading-puce.vercel.app/api/health
+curl -s https://titan-trading-puce.vercel.app/api/config
+TITAN_LIVE_BASE=https://titan-trading-puce.vercel.app npm run smoke
+```
+
+Halaman `/`, `/admin`, `/auth-callback.html`, `/backend.js` harus `200`.
+Endpoint `/api/state` dan `/api/admin/*` harus `401` tanpa sesi.
