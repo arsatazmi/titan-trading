@@ -300,7 +300,23 @@ function deleteAt(obj, keys) {
 /* --------------------------------------------------------------- API */
 async function handleApi(req, res, url, method, p) {
   if (p === '/api/health' && method === 'GET') {
-    return ok(res, { status: 'healthy', app: 'Titan Vault', time: new Date().toISOString() });
+    // Read-only probes so a deployed instance can confirm its Supabase wiring.
+    const probe = async (...args) => { try { return await sbFetch(...args); } catch { return { ok: false }; } };
+    const [rest, authSettings, authAdmin] = await Promise.all([
+      probe('/rest/v1/titan_vault_users?select=uid&limit=1'),
+      probe('/auth/v1/settings', { key: ANON_KEY }),
+      probe('/auth/v1/admin/users?per_page=1', { key: SERVICE_KEY })
+    ]);
+    return ok(res, {
+      status: (rest.ok && authSettings.ok && authAdmin.ok) ? 'healthy' : 'degraded',
+      app: 'Titan Vault',
+      time: new Date().toISOString(),
+      checks: {
+        database: rest.ok,
+        authAnonKey: authSettings.ok,
+        authAdminApi: authAdmin.ok
+      }
+    });
   }
   if (p === '/api/config' && method === 'GET') {
     return ok(res, { plans: PLANS, paymentMethods: PAYMENT_METHODS, googleEnabled: GOOGLE_OAUTH_ENABLED });
