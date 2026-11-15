@@ -20,7 +20,8 @@ const MAX_BODY = 100_000;
 const DEMO_NOTICE = 'Mode demo: tidak ada trading nyata, tidak ada pembayaran nyata, dan jangan masukkan password broker asli.';
 // Experimental DEMO only. BTC requires protocol-4; local opt-in, fresh quote
 // and short lease are all required; broker execution is not guaranteed.
-const PILOT_DEMO_ENABLED = true;
+// SECURITY TRANSITION: no demo order lease until access and pairing are repaired.
+const PILOT_DEMO_ENABLED = false;
 const PAYMENT_METHODS = [
   { id: 'bank_demo', label: 'Transfer Bank Demo', instruction: 'Rekening demo: 0000-0000-0000 a.n. TitanTrading Demo. Jangan transfer uang nyata.' },
   { id: 'qris_demo', label: 'QRIS Demo', instruction: 'QRIS demo: TT-DEMO-QRIS. Jangan scan atau bayar di dunia nyata.' },
@@ -131,7 +132,7 @@ function auth(req) {
   const session = d.sessions.find((s) => s.tokenHash === sha256(token) && new Date(s.expiresAt).getTime() > Date.now());
   if (!session) return null;
   const user = findUserById(session.userId);
-  if (!user) return null;
+  if (!user || (user.role === 'admin' && d.adminRecovery?.userId === user.id)) return null;
   return { user, session };
 }
 
@@ -311,7 +312,7 @@ async function handleApi(req, res, url) {
   const p = url.pathname;
   const method = req.method;
   const isMutation = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
-  const publicAuth = p === '/api/auth/login' || p === '/api/auth/register' || p === '/api/pilot/heartbeat';
+  const publicAuth = p === '/api/auth/login' || p === '/api/auth/register' || p === '/api/auth/recover-admin' || p === '/api/pilot/heartbeat';
   let ctx = null;
   if (isMutation && !publicAuth) {
     ctx = requireAuth(req, res);
@@ -395,6 +396,33 @@ async function handleApi(req, res, url) {
     return ok(res, { plans: getDb().plans.filter((x) => x.active), paymentMethods: PAYMENT_METHODS, demoNotice: DEMO_NOTICE });
   }
 
+  if (p === '/api/auth/recover-admin' && method === 'POST') {
+    // A recovery record is provisioned out-of-band; old admin access stays
+    // disabled while a record exists, including if the code has expired.
+    const d = getDb(), recovery = d.adminRecovery;
+    const code = typeof body.code === 'string' ? body.code : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!recovery || !/^[a-f0-9]{64}$/.test(code) ||
+        !/^[a-f0-9]{64}$/.test(String(recovery.codeHash || '')) ||
+        !Number.isFinite(Date.parse(recovery.expiresAt)) || Date.parse(recovery.expiresAt) <= Date.now() ||
+        !crypto.timingSafeEqual(Buffer.from(sha256(code), 'hex'), Buffer.from(recovery.codeHash, 'hex')))
+      return fail(res, 400, 'Kode pemulihan tidak valid atau kedaluwarsa.');
+    const admin = d.users.find(u => u.id === recovery.userId && u.role === 'admin');
+    if (!admin) return fail(res, 400, 'Akun pemulihan tidak tersedia.');
+    if (password.length < 16 || password.length > 128 || /^(.)\1+$/.test(password) ||
+        password.toLowerCase() === String(admin.email || '').toLowerCase())
+      return fail(res, 400, 'Pilih password baru 16–128 karakter yang tidak mudah ditebak.');
+    admin.passwordHash = hashPassword(password);
+    d.sessions = d.sessions.filter(s => s.userId !== admin.id);
+    d.pilotDevices = [];
+    delete d.adminRecovery;
+    logEvent({ actorId: admin.id, actorRole:'admin', action:'admin.recovered', targetType:'user', targetId:admin.id,
+      message:'Akses admin dipulihkan dan pairing lama dicabut.' });
+    save();
+    clearCookie(res);
+    return ok(res,{message:'Password diperbarui; silakan masuk lagi.'});
+  }
+
   if (p === '/api/auth/register' && method === 'POST') {
     const name = str(body.name, 80);
     const email = str(body.email, 160).toLowerCase();
@@ -423,6 +451,8 @@ async function handleApi(req, res, url) {
     if (!rateLimit(`${ip}:${email}`)) return fail(res, 429, 'Terlalu banyak percobaan masuk. Coba lagi nanti.', 'rate_limited');
     const user = findUserByEmail(email);
     if (!user || !verifyPassword(password, user.passwordHash)) return fail(res, 401, 'Email atau password salah.', 'invalid_credentials');
+    if (user.role === 'admin' && getDb().adminRecovery?.userId === user.id)
+      return fail(res, 403, 'Akses admin dikunci sementara untuk pemulihan.');
     const { token, session } = createSession(user);
     logEvent({ actorId: user.id, actorRole: user.role, action: 'auth.login', targetType: 'user', targetId: user.id, message: 'Masuk ke portal demo.' });
     save();
@@ -670,9 +700,7 @@ async function handleApi(req, res, url) {
 
   if (p === '/api/admin/reset-demo' && method === 'POST') {
     if (ctx.user.role !== 'admin') return fail(res, 403, 'Akses admin diperlukan.', 'forbidden');
-    resetDemo();
-    clearCookie(res);
-    return ok(res, { message: 'Data demo direset. Silakan masuk lagi.' });
+    return fail(res, 403, 'Reset demo dinonaktifkan selama pengamanan; data tidak diubah.');
   }
 
   return fail(res, 404, 'Endpoint tidak ditemukan.', 'not_found');
