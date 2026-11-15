@@ -41,6 +41,17 @@ Atau lewat konektor Vercel: `create_deployment` dengan `target=production`,
 `project=prj_bugsz8RLq80NIkn9FBALHiJEV9Rz`, `team_id=team_fnvWqz7sFTrpEb6CTQKnriO7`
 dan seluruh file source sebagai `files`.
 
+
+## Hasil verifikasi produksi
+
+Deployment `dpl_34GtC9NZxHopVB981PwmtXuc3RxH` (READY / PROMOTED) pada commit `5db90d5`:
+
+- `/api/health` → `healthy` dengan `checks.database`, `checks.authAnonKey`, `checks.authAdminApi` seluruhnya `true`
+- Halaman `/`, `/admin`, `/backend.js`, `/auth-callback.html` → `200`
+- Endpoint terlindungi → `401` tanpa sesi
+- Uji alur nyata (buat akun → masuk → verifikasi token → tulis → baca → hapus akun uji) → berhasil, tanpa akun uji tersisa
+- `npm run smoke` → 19 lulus, 0 gagal
+
 ## Verifikasi setelah deploy
 
 ```bash
