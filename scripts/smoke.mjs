@@ -60,6 +60,7 @@ try {
   check('portal HTML served', page.status === 200 && page.text.includes('Titan Vault - Account Portal'));
   check('portal uses real backend bridge', page.text.includes('/backend.js'));
   check('portal has no simulated flag', !/demo|simulasi|simulation/i.test(page.text));
+  check('login accepts username ids', page.text.includes('Email or username'));
 
   const admin = await req('/admin.html');
   check('master dashboard served', admin.status === 200 && admin.text.includes('Master Dashboard'));

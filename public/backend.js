@@ -143,7 +143,7 @@
       if (authSection) authSection.classList.add('hidden');
       if (portal) portal.classList.remove('hidden');
       if (navAdmin) navAdmin.classList.toggle('hidden', !user.isAdmin);
-      if (typeof window.listenToUserData === 'function') window.listenToUserData(user);
+      if (typeof window.listenToUserData === 'function') window.listenToUserData({ ...user, email: user.login || user.email });
     } else {
       clearPollers();
       if (portal) portal.classList.add('hidden');

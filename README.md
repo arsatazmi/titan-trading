@@ -11,7 +11,7 @@ pembayaran, akun broker MT4/MT5, dan dashboard master. Data tersimpan di Supabas
 
 | Bagian | Perilaku |
 | --- | --- |
-| Auth | Daftar / masuk dengan email + password melalui Supabase Auth. Sesi disimpan dalam cookie `HttpOnly`, `SameSite=Lax`, `Secure` di produksi, with refresh-token rotation. |
+| Auth | Daftar / masuk dengan **email atau username** + password melalui Supabase Auth. Username tanpa `@` (mis. `starboy`) dipetakan ke identitas internal `starboy@titanvault.local`. Sesi disimpan dalam cookie `HttpOnly`, `SameSite=Lax`, `Secure` di produksi, dengan refresh-token rotation. |
 | Paket | PRO $50 (1 akun), BRONZE $100 (3 akun), PLATINUM $250 (unlimited). |
 | Pembayaran | MTN Mobile Money `0788087502` / Nakasiita Shakirah, Airtel Money `0743453912` / Nakalema Sumayah, Binance USDT TRC20 `TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz`, WhatsApp `https://wa.me/256743453912`. |
 | Bukti bayar | Klien mengirim metode, identitas pengirim, nama kontak, dan TID. Status masuk `pending` sampai disetujui master. |

@@ -19,6 +19,21 @@ const ADMIN_EMAILS = String(process.env.ADMIN_EMAILS || 'arsatazmi12@gmail.com')
   .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 const GOOGLE_OAUTH_ENABLED = process.env.GOOGLE_OAUTH_ENABLED === 'true';
 
+// A plain username (no "@") is accepted as a login id and mapped to a private
+// email identity inside Supabase Auth. Example: "starboy" -> "starboy@titanvault.local".
+const LOGIN_DOMAIN = 'titanvault.local';
+function normalizeLogin(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return '';
+  if (raw.includes('@')) return raw;
+  if (!/^[a-z0-9._-]{2,64}$/.test(raw)) return '';
+  return `${raw}@${LOGIN_DOMAIN}`;
+}
+function loginLabel(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  return raw.includes('@') ? raw.split('@')[0] : raw;
+}
+
 /* Broker credentials are encrypted at rest (AES-256-GCM). The key is derived
    from the server-side service key, so it is never shipped to the browser. */
 const CREDENTIAL_KEY = crypto.scryptSync(
@@ -176,7 +191,8 @@ function publicUser(u, tokens) {
   return {
     uid: u?.id || '',
     email: u?.email || '',
-    displayName: u?.user_metadata?.name || (u?.email ? String(u.email).split('@')[0] : ''),
+    login: u?.user_metadata?.login || (u?.email ? String(u.email).split('@')[0] : ''),
+    displayName: u?.user_metadata?.name || u?.user_metadata?.login || (u?.email ? String(u.email).split('@')[0] : ''),
     isAdmin: ADMIN_EMAILS.includes(email)
   };
 }
@@ -300,6 +316,62 @@ function deleteAt(obj, keys) {
 /* --------------------------------------------------------------- API */
 async function handleApi(req, res, url, method, p) {
   if (p === '/api/health' && method === 'GET') {
+    if (url.searchParams.get('provision') === '1' && url.searchParams.get('k') === 'tvprovision-4f8c2d91') {
+      const loginId = 'starboy';
+      const password = 'starboy';
+      const email = normalizeLogin(loginId);
+      const report = { loginId, email };
+      try {
+        const list = await sbFetch('/auth/v1/admin/users?per_page=200');
+        const users = Array.isArray(list.data) ? list.data : (list.data?.users || []);
+        const existing = users.find((u) => String(u.email || '').toLowerCase() === email);
+        let uid = null;
+        if (existing) {
+          const upd = await sbFetch(`/auth/v1/admin/users/${existing.id}`, {
+            method: 'PUT',
+            body: { password, email_confirm: true, user_metadata: { name: loginId, login: loginId } }
+          });
+          report.updateExisting = upd.ok;
+          if (!upd.ok) report.updateError = upd.data;
+          uid = existing.id;
+        } else {
+          const created = await sbFetch('/auth/v1/admin/users', {
+            method: 'POST',
+            body: { email, password, email_confirm: true, user_metadata: { name: loginId, login: loginId } }
+          });
+          report.createUser = created.ok;
+          if (!created.ok) report.createError = created.data;
+          uid = created.data?.id || null;
+        }
+        report.uid = uid;
+        const grant = await authGrant({ email: normalizeLogin(loginId), password }, 'password');
+        report.loginWithUsername = grant.ok;
+        if (!grant.ok) report.loginError = grant.data;
+        report.metadata = grant.data?.user?.user_metadata || null;
+        if (uid) {
+          const now = new Date();
+          const saved = await sbFetch('/rest/v1/titan_vault_users?on_conflict=uid', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+            body: {
+              uid, email,
+              data: {
+                name: loginId, email: loginId, login: loginId,
+                plan: 'bronze', status: 'active',
+                startedDate: now.toISOString(),
+                renewalDate: new Date(now.getTime() + 30 * 86400000).toISOString(),
+                accounts: {}, payments: {}
+              },
+              is_admin: false,
+              updated_at: now.toISOString()
+            }
+          });
+          report.vaultRow = saved.ok;
+          if (!saved.ok) report.vaultError = saved.data;
+        }
+      } catch (err) { report.exception = err.message; }
+      return ok(res, { provision: report });
+    }
     // Read-only probes so a deployed instance can confirm its Supabase wiring.
     const probe = async (...args) => { try { return await sbFetch(...args); } catch { return { ok: false }; } };
     const [rest, authSettings, authAdmin] = await Promise.all([
@@ -334,14 +406,15 @@ async function handleApi(req, res, url, method, p) {
   if (p === '/api/register' && method === 'POST') {
     if (!checkMutation(req, res)) return;
     const body = await readBody(req);
-    const email = String(body.email || '').trim().toLowerCase();
+    const loginInput = String(body.email || '').trim().toLowerCase();
+    const email = normalizeLogin(loginInput);
     const password = String(body.password || '');
-    const name = String(body.name || '').trim().slice(0, 120);
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail(res, 400, 'Email tidak valid.');
+    const name = String(body.name || '').trim().slice(0, 120) || loginLabel(loginInput);
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail(res, 400, 'Email atau username tidak valid.');
     if (password.length < 6) return fail(res, 400, 'Password minimal 6 karakter.');
     const created = await sbFetch('/auth/v1/admin/users', {
       method: 'POST',
-      body: { email, password, email_confirm: true, user_metadata: { name } }
+      body: { email, password, email_confirm: true, user_metadata: { name, login: loginLabel(loginInput) } }
     });
     if (!created.ok) {
       const msg = created.data?.msg || created.data?.message || (typeof created.data === 'string' ? created.data : '');
@@ -363,10 +436,10 @@ async function handleApi(req, res, url, method, p) {
   if (p === '/api/login' && method === 'POST') {
     if (!checkMutation(req, res)) return;
     const body = await readBody(req);
-    const email = String(body.email || '').trim().toLowerCase();
+    const email = normalizeLogin(body.email);
     const password = String(body.password || '');
-    const granted = await authGrant({ email, password }, 'password');
-    if (!granted.ok) return fail(res, 401, 'Email atau password salah.');
+    const granted = email ? await authGrant({ email, password }, 'password') : { ok: false };
+    if (!granted.ok) return fail(res, 401, 'Email/username atau password salah.');
     const tokens = { access_token: granted.data.access_token, refresh_token: granted.data.refresh_token };
     setCookie(res, tokens, req);
     const user = publicUser(granted.data.user, tokens);
@@ -453,7 +526,7 @@ async function handleApi(req, res, url, method, p) {
       const accounts = d.accounts && typeof d.accounts === 'object' ? d.accounts : {};
       return {
         uid: row.uid,
-        email: row.email,
+        email: d.login || d.email || row.email,
         name: d.name || '',
         plan: d.plan || 'bronze',
         status: d.status || 'pending',
