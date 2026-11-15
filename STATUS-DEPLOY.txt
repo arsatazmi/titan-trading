@@ -10,7 +10,9 @@ Aplikasi : Portal akun produksi — bukan demo, bukan simulasi
 Backend  : Supabase Auth + Postgres, cookie sesi HttpOnly, CSRF + cek origin
 Frontend : Titan Vault satu halaman, bahasa Inggris, tema krem/hijau sesuai referensi
 Paket    : PRO $50 / BRONZE $100 / PLATINUM $250 per bulan
-Bayar    : MTN 0788087502, Airtel 0743453912, Binance USDT TRC20, WhatsApp 256743453912
+Bayar    : DANA 0856-9333-8337 a/n Siti Nurkomalasari
+           Bank Mandiri 1260009995357 a/n Muhammad Basir
+WA Owner : 083830065860 a/n Syadtech.ID (https://wa.me/6283830065860)
 Master   : aktivasi, ubah paket, konfirmasi/tolak pembayaran, audit, feed perintah bot
 
 

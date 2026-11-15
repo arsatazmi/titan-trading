@@ -473,33 +473,33 @@
           <!-- EXACT HOW TO PAY & SUBMIT PAYMENT PROOF -->
           <div class="glass-card p-6 space-y-4 mt-6">
             <h3 class="text-2xl text-white font-bold">How to pay</h3>
-            <p class="text-xs text-slate-400 leading-relaxed">Send the amount to any account below, fill in your payment proof reference, and submit for master confirmation.</p>
+            <p class="text-xs text-slate-400 leading-relaxed">Send the amount to the DANA e-wallet or Bank Mandiri account below, fill in your payment proof reference, and submit for owner confirmation.</p>
             
             <div class="payment-sub-card space-y-1">
               <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                <span>MTN MOBILE MONEY</span>
-                <button onclick="copyToClipboard('0788087502')" class="text-sky-400 underline font-semibold text-[11px] cursor-pointer">Copy</button>
+                <span>DANA E-WALLETS</span>
+                <button onclick="copyToClipboard('085693338337')" class="text-sky-400 underline font-semibold text-[11px] cursor-pointer">Copy</button>
               </div>
-              <div class="text-base font-semibold text-white">0788087502</div>
-              <div class="text-xs text-slate-400">Nakasiita Shakirah</div>
+              <div class="text-base font-semibold text-white">0856-9333-8337</div>
+              <div class="text-xs text-slate-400">A/n Siti Nurkomalasari</div>
             </div>
 
             <div class="payment-sub-card space-y-1">
               <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                <span>AIRTEL MONEY</span>
-                <button onclick="copyToClipboard('0743453912')" class="text-sky-400 underline font-semibold text-[11px] cursor-pointer">Copy</button>
+                <span>BANK MANDIRI</span>
+                <button onclick="copyToClipboard('1260009995357')" class="text-sky-400 underline font-semibold text-[11px] cursor-pointer">Copy</button>
               </div>
-              <div class="text-base font-semibold text-white">0743453912</div>
-              <div class="text-xs text-slate-400">Nakalema Sumayah</div>
+              <div class="text-base font-semibold text-white">1260009995357</div>
+              <div class="text-xs text-slate-400">A/n Muhammad Basir</div>
             </div>
 
             <div class="payment-sub-card space-y-1">
               <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                <span>BINANCE — USDT (TRC20)</span>
-                <button onclick="copyToClipboard('TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz')" class="text-sky-400 underline font-semibold text-[11px] cursor-pointer">Copy</button>
+                <span>OWNER WHATSAPP</span>
+                <button onclick="copyToClipboard('083830065860')" class="text-sky-400 underline font-semibold text-[11px] cursor-pointer">Copy</button>
               </div>
-              <div class="text-xs font-mono font-semibold text-white break-all">TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz</div>
-              <div class="text-xs text-slate-400">USDT TRC20 wallet</div>
+              <div class="text-base font-semibold text-white">083830065860</div>
+              <div class="text-xs text-slate-400">A/n Syadtech.ID</div>
             </div>
 
             <!-- PAYMENT SUBMISSION INPUT FIELDS -->
@@ -509,14 +509,14 @@
               <div>
                 <label class="block text-xs font-semibold text-slate-300 mb-1">Payment Method Used</label>
                 <select id="pay-method-select" onchange="togglePayMethodInput()" class="w-full px-3.5 py-2.5 input-field text-xs bg-slate-900">
-                  <option value="phone">Mobile Money Phone Number</option>
-                  <option value="crypto">Binance Account / Wallet Email</option>
+                  <option value="dana">DANA e-wallet</option>
+                  <option value="mandiri">Bank Mandiri</option>
                 </select>
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1" id="pay-sender-label">Sender Phone Number</label>
-                <input type="text" id="pay-sender-identifier" required class="w-full px-3.5 py-2.5 input-field text-xs" placeholder="e.g. 0780000000">
+                <label class="block text-xs font-semibold text-slate-300 mb-1" id="pay-sender-label">Sender DANA Number</label>
+                <input type="text" id="pay-sender-identifier" required class="w-full px-3.5 py-2.5 input-field text-xs" placeholder="e.g. 0856-xxxx-xxxx">
               </div>
 
               <div>
@@ -526,7 +526,7 @@
 
               <div>
                 <label class="block text-xs font-semibold text-slate-300 mb-1">Transaction ID (TID) / Confirmation Ref</label>
-                <input type="text" id="pay-tid-ref" required class="w-full px-3.5 py-2.5 input-field text-xs" placeholder="e.g. 18273645920 or TxHash">
+                <input type="text" id="pay-tid-ref" required class="w-full px-3.5 py-2.5 input-field text-xs" placeholder="e.g. DANA ref / Bank transfer ref">
               </div>
 
               <button id="plan-checkout-btn" onclick="submitSubscriptionRequest()" class="w-full py-3 px-4 rounded-full bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition shadow-sm mt-2">
@@ -535,8 +535,8 @@
               
               <br>
               <br>
-              <a href="https://wa.me/256743453912" style="background-color: #25D366" class="w-full py-3 px-4 rounded-full inline-block text-center text-white text-xs font-medium transition shadow-sm mt-2">
-                Submit Sreenshot via whatsapp
+              <a href="https://wa.me/6283830065860" target="_blank" rel="noopener noreferrer" style="background-color: #25D366" class="w-full py-3 px-4 rounded-full inline-block text-center text-white text-xs font-medium transition shadow-sm mt-2">
+                Submit Screenshot via WhatsApp (Owner)
               </a>   
             </div>
 
@@ -697,12 +697,12 @@
       const method = document.getElementById('pay-method-select').value;
       const label = document.getElementById('pay-sender-label');
       const input = document.getElementById('pay-sender-identifier');
-      if (method === 'phone') {
-        label.innerText = 'Sender Phone Number';
-        input.placeholder = 'e.g. 0780000000';
+      if (method === 'mandiri') {
+        label.innerText = 'Sender Bank / Rekening Number';
+        input.placeholder = 'e.g. 1234567890 (nama bank)';
       } else {
-        label.innerText = 'Sender Binance Wallet / Email';
-        input.placeholder = 'e.g. binance@example.com / Wallet ID';
+        label.innerText = 'Sender DANA Number';
+        input.placeholder = 'e.g. 0856-xxxx-xxxx';
       }
     }
 
@@ -721,6 +721,7 @@
       const amount = prices[currentUserPlan] || 100;
 
       const method = document.getElementById('pay-method-select').value;
+      const methodLabel = method === 'mandiri' ? 'Bank Mandiri' : 'DANA e-wallet';
       const sender = document.getElementById('pay-sender-identifier').value.trim();
       const contact = document.getElementById('pay-contact-name').value.trim();
       const tid = document.getElementById('pay-tid-ref').value.trim();
@@ -735,7 +736,7 @@
         status: 'pending',
         contactName: contact,
         phone: sender,
-        notes: `TID: ${tid} | Method: ${method}`
+        notes: `TID: ${tid} | Method: ${methodLabel}`
       });
 
       const paymentRef = window.rtdbMethods.ref(window.firebaseDb, 'users/' + currentUid + '/payments');
@@ -745,7 +746,7 @@
         amount: amount,
         date: new Date().toISOString(),
         status: 'pending',
-        method: method,
+        method: methodLabel,
         senderIdentifier: sender,
         contactName: contact,
         tid: tid

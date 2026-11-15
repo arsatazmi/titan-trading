@@ -77,10 +77,14 @@ const PLANS = [
   { id: 'platinum', name: 'PLATINUM', price: 250, accountLimit: 0, features: ['Unlimited broker accounts', 'Start and stop the bot per account'] }
 ];
 const PAYMENT_METHODS = [
-  { id: 'mtn', label: 'MTN MOBILE MONEY', number: '0788087502', holder: 'Nakasiita Shakirah' },
-  { id: 'airtel', label: 'AIRTEL MONEY', number: '0743453912', holder: 'Nakalema Sumayah' },
-  { id: 'binance', label: 'BINANCE — USDT (TRC20)', number: 'TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz', holder: 'USDT TRC20 wallet' }
+  { id: 'dana', label: 'DANA E-WALLETS', number: '0856-9333-8337', digits: '085693338337', holder: 'Siti Nurkomalasari' },
+  { id: 'mandiri', label: 'BANK MANDIRI', number: '1260009995357', digits: '1260009995357', holder: 'Muhammad Basir' }
 ];
+const OWNER_WHATSAPP = {
+  label: 'Syadtech.ID',
+  number: '083830065860',
+  url: 'https://wa.me/6283830065860'
+};
 
 /* ------------------------------------------------------------------ helpers */
 function send(res, status, data, headers = {}) {
@@ -344,7 +348,7 @@ async function handleApi(req, res, url, method, p) {
     });
   }
   if (p === '/api/config' && method === 'GET') {
-    return ok(res, { plans: PLANS, paymentMethods: PAYMENT_METHODS, googleEnabled: GOOGLE_OAUTH_ENABLED });
+    return ok(res, { plans: PLANS, paymentMethods: PAYMENT_METHODS, ownerWhatsapp: OWNER_WHATSAPP, googleEnabled: GOOGLE_OAUTH_ENABLED });
   }
 
   if (p === '/api/oauth-google' && method === 'GET') {

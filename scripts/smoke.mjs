@@ -56,14 +56,18 @@ try {
   const config = await req('/api/config');
   check('3 USD plans', config.data?.plans?.length === 3);
   check('plan prices 50/100/250', JSON.stringify(config.data?.plans?.map((p) => p.price)) === '[50,100,250]');
-  check('3 real payment methods', config.data?.paymentMethods?.length === 3);
-  check('MTN number is 0788087502', config.data?.paymentMethods?.[0]?.number === '0788087502');
-  check('TRC20 wallet matches reference', config.data?.paymentMethods?.[2]?.number === 'TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz');
+  check('2 real payment methods', config.data?.paymentMethods?.length === 2);
+  check('DANA number and holder', config.data?.paymentMethods?.[0]?.number === '0856-9333-8337' && config.data?.paymentMethods?.[0]?.holder === 'Siti Nurkomalasari');
+  check('Mandiri number and holder', config.data?.paymentMethods?.[1]?.number === '1260009995357' && config.data?.paymentMethods?.[1]?.holder === 'Muhammad Basir');
+  check('owner WhatsApp config', config.data?.ownerWhatsapp?.number === '083830065860' && config.data?.ownerWhatsapp?.url === 'https://wa.me/6283830065860');
 
   const page = await req('/');
   check('portal HTML served', page.status === 200 && page.text.includes('Titan Vault - Account Portal'));
   check('portal uses real backend bridge', page.text.includes('/backend.js'));
   check('portal has no simulated flag', !/demo|simulasi|simulation/i.test(page.text));
+  check('portal shows new payment details', page.text.includes('0856-9333-8337') && page.text.includes('1260009995357') && page.text.includes('083830065860'));
+  check('portal has no old payment details', !/0788087502|0743453912|TBghDNeXQ6sh6g3moaFvt5cPDx2DUEqtYz|256743453912|Nakasiita|Nakalema|Binance|MTN MOBILE/i.test(page.text));
+  check('WhatsApp link points to owner', page.text.includes('https://wa.me/6283830065860'));
   check('login accepts username ids', page.text.includes('Email or username'));
   check('username starboy maps to internal identity', normalizeLogin('starboy') === 'starboy@titanvault.local');
   check('starboy is recognised as owner', publicUser({ id: 'x', email: 'starboy@titanvault.local', user_metadata: { login: 'starboy' } }).isAdmin === true);
