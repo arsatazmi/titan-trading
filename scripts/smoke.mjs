@@ -81,12 +81,15 @@ try {
 
   const backend = await req('/backend.js');
   check('backend bridge served', backend.status === 200 && backend.text.includes('/api/state'));
+  check('backend uses POST state writes', backend.text.includes("method: 'POST'") && backend.text.includes("{ op, path: r.path"));
 
   const noSession = await req('/api/session');
   check('session is anonymous when not signed in', noSession.status === 200 && noSession.data?.user === null);
 
   const guarded = await req('/api/state?path=users/test');
   check('state requires authentication', guarded.status === 401, JSON.stringify(guarded.data));
+  const guardedPost = await req('/api/state', { method: 'POST', headers: { 'X-Titan-Client': '1' }, body: { op: 'set', path: 'users/test/accounts/-x', value: {} } });
+  check('POST state route exists and requires authentication', guardedPost.status === 401, JSON.stringify(guardedPost.data));
 
   const guardedAdmin = await req('/api/admin-users');
   check('admin requires authentication', guardedAdmin.status === 401);

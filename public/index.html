@@ -715,7 +715,7 @@
       showToast("An authentication error occurred. Please try again.", false);
     }
 
-    function submitSubscriptionRequest() {
+    async function submitSubscriptionRequest() {
       if (!currentUid) return;
       const prices = { pro: 50, bronze: 100, platinum: 250 };
       const amount = prices[currentUserPlan] || 100;
@@ -731,29 +731,32 @@
         return;
       }
 
-      window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, 'users/' + currentUid), {
-        plan: currentUserPlan,
-        status: 'pending',
-        contactName: contact,
-        phone: sender,
-        notes: `TID: ${tid} | Method: ${methodLabel}`
-      });
-
       const paymentRef = window.rtdbMethods.ref(window.firebaseDb, 'users/' + currentUid + '/payments');
       const newPaymentRef = window.rtdbMethods.push(paymentRef);
-      window.rtdbMethods.set(newPaymentRef, {
-        plan: currentUserPlan,
-        amount: amount,
-        date: new Date().toISOString(),
-        status: 'pending',
-        method: methodLabel,
-        senderIdentifier: sender,
-        contactName: contact,
-        tid: tid
-      });
-
-      showToast(`Payment reference for ${currentUserPlan.toUpperCase()} submitted! Awaiting master approval.`);
-      switchTab('account');
+      try {
+        // Sequential: two concurrent writes would overwrite each other.
+        await window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, 'users/' + currentUid), {
+          plan: currentUserPlan,
+          status: 'pending',
+          contactName: contact,
+          phone: sender,
+          notes: `TID: ${tid} | Method: ${methodLabel}`
+        });
+        await window.rtdbMethods.set(newPaymentRef, {
+          plan: currentUserPlan,
+          amount: amount,
+          date: new Date().toISOString(),
+          status: 'pending',
+          method: methodLabel,
+          senderIdentifier: sender,
+          contactName: contact,
+          tid: tid
+        });
+        showToast(`Payment reference for ${currentUserPlan.toUpperCase()} submitted! Awaiting owner approval.`);
+        switchTab('account');
+      } catch (err) {
+        showToast(err.message || "Gagal mengirim bukti pembayaran.", false);
+      }
     }
 
     function showToast(message, isSuccess = true) {
@@ -825,9 +828,12 @@
       document.getElementById('broker-modal').classList.add('hidden');
     }
 
-    function handleSaveBrokerModal(e) {
+    async function handleSaveBrokerModal(e) {
       e.preventDefault();
-      if (!currentUid) return;
+      if (!currentUid) {
+        showToast("Sesi berakhir. Silakan masuk lagi.", false);
+        return;
+      }
 
       const accId = document.getElementById('modal-account-id').value;
       const accData = {
@@ -841,19 +847,23 @@
         botRunning: false
       };
 
-      if (accId) {
-        if (currentAccounts[accId] && currentAccounts[accId].botRunning !== undefined) {
-          accData.botRunning = currentAccounts[accId].botRunning;
+      try {
+        if (accId) {
+          if (currentAccounts[accId] && currentAccounts[accId].botRunning !== undefined) {
+            accData.botRunning = currentAccounts[accId].botRunning;
+          }
+          await window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts/${accId}`), accData);
+          showToast("Broker account updated successfully");
+        } else {
+          const newRef = window.rtdbMethods.push(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts`));
+          await window.rtdbMethods.set(newRef, accData);
+          showToast("New broker account added successfully");
         }
-        window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts/${accId}`), accData);
-        showToast("Broker account updated successfully");
-      } else {
-        const newRef = window.rtdbMethods.push(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts`));
-        window.rtdbMethods.set(newRef, accData);
-        showToast("New broker account added successfully");
+        closeBrokerModal();
+        if (window.titanRefresh) window.titanRefresh();
+      } catch (err) {
+        showToast(err.message || "Gagal menyimpan akun broker.", false);
       }
-
-      closeBrokerModal();
     }
 
     function deleteAccount(accId) {
@@ -869,8 +879,9 @@
       const newState = !currentState;
       window.rtdbMethods.update(window.rtdbMethods.ref(window.firebaseDb, `users/${currentUid}/accounts/${accId}`), {
         botRunning: newState
-      });
-      showToast(newState ? "Bot started for account" : "Bot stopped for account");
+      }).then(() => {
+        showToast(newState ? "Bot started for account" : "Bot stopped for account");
+      }).catch(err => showToast(err.message || "Gagal mengubah status bot.", false));
     }
 
     function toggleAccountPassword(accId) {
@@ -886,8 +897,8 @@
         contactName: document.getElementById('contact-name').value,
         phone: document.getElementById('acc-phone').value,
         notes: document.getElementById('acc-notes').value
-      });
-      showToast("Account details updated");
+      }).then(() => showToast("Account details updated"))
+        .catch(err => showToast(err.message || "Gagal menyimpan detail akun.", false));
     }
 
     window.listenToUserData = function(user) {
@@ -960,7 +971,7 @@
             plan: 'bronze',
             status: 'pending',
             createdAt: new Date().toISOString()
-          });
+          }).catch(err => showToast(err.message || "Gagal membuat data akun.", false));
         }
       });
     };

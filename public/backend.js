@@ -47,15 +47,17 @@
   }
   const query = (r) => '/api/state?path=' + encodeURIComponent(r.path);
 
-  function set(r, value) {
-    return api(query(r), { method: 'PUT', body: JSON.stringify({ value }) }).then((d) => d.value);
+  // All writes go through POST with an explicit operation, so the browser
+  // never depends on PUT/PATCH/DELETE being routed by the hosting platform.
+  function write(op, r, payload) {
+    return api('/api/state', {
+      method: 'POST',
+      body: JSON.stringify({ op, path: r.path, ...payload })
+    }).then((d) => { refresh(); return d.value; });
   }
-  function update(r, patch) {
-    return api(query(r), { method: 'PATCH', body: JSON.stringify({ patch }) }).then((d) => d.value);
-  }
-  function remove(r) {
-    return api(query(r), { method: 'DELETE' }).then((d) => d.value);
-  }
+  function set(r, value) { return write('set', r, { value }); }
+  function update(r, patch) { return write('update', r, { patch }); }
+  function remove(r) { return write('remove', r, {}); }
   function get(r) {
     return api(query(r)).then((d) => d.value);
   }
@@ -82,12 +84,16 @@
     };
     tick();
     const id = setInterval(tick, 4000);
-    pollers.set(pathname, id);
+    pollers.set(pathname, { id, tick });
     return () => { clearInterval(id); pollers.delete(pathname); };
   }
   function clearPollers() {
-    pollers.forEach((id) => clearInterval(id));
+    pollers.forEach(({ id }) => clearInterval(id));
     pollers.clear();
+  }
+  // Re-read immediately after a write instead of waiting for the next poll.
+  function refresh() {
+    pollers.forEach(({ tick }) => { try { tick(); } catch (e) { /* ignore */ } });
   }
 
   const fbAuthMethods = {
@@ -132,6 +138,7 @@
   window.firebaseDb = db;
   window.googleProvider = provider;
   window.rtdbMethods = { ref, set, get, onValue, update, push, remove };
+  window.titanRefresh = refresh;
   window.fbAuthMethods = fbAuthMethods;
 
   // Mirror Firebase's onAuthStateChanged observer used by the original page.

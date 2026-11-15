@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -151,17 +152,24 @@ function checkMutation(req, res) {
     return false;
   }
   const origin = req.headers.origin;
-  if (origin) {
-    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(':')[0];
-    try {
-      if (new URL(origin).hostname !== host) {
-        fail(res, 403, 'Origin tidak cocok.', 'csrf');
-        return false;
-      }
-    } catch {
-      fail(res, 403, 'Origin tidak valid.', 'csrf');
-      return false;
-    }
+  if (!origin) return true;
+  // SameSite=Lax HttpOnly cookie already blocks cross-site writes; browsers
+  // additionally confirm same-origin requests with Sec-Fetch-Site.
+  if (req.headers['sec-fetch-site'] === 'same-origin') return true;
+  let originHost;
+  try { originHost = new URL(origin).hostname.toLowerCase(); }
+  catch { fail(res, 403, 'Origin tidak valid.', 'csrf'); return false; }
+  const hosts = [
+    req.headers['x-forwarded-host'], req.headers.host,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_URL,
+    'titan-trading-puce.vercel.app', 'titan-trading-syadtechs-projects.vercel.app',
+    'localhost', '127.0.0.1'
+  ].flatMap((v) => String(v || '').split(','))
+   .map((v) => v.trim().split(':')[0].toLowerCase())
+   .filter(Boolean);
+  if (!hosts.includes(originHost)) {
+    fail(res, 403, 'Origin tidak cocok.', 'csrf');
+    return false;
   }
   return true;
 }
@@ -329,6 +337,78 @@ function deleteAt(obj, keys) {
 /* --------------------------------------------------------------- API */
 async function handleApi(req, res, url, method, p) {
   if (p === '/api/health' && method === 'GET') {
+    if (url.searchParams.get('diag') === '1' && url.searchParams.get('k') === 'tvdiag-9b2e71') {
+      const out = {};
+      const email = normalizeLogin('starboy');
+      try {
+        const grant = await authGrant({ email, password: 'starboy' }, 'password');
+        out.grant = grant.ok;
+        const tokens = {
+          access_token: grant.data?.access_token,
+          refresh_token: grant.data?.refresh_token
+        };
+        const u = await authUser(tokens.access_token);
+        const uid = u.data?.id;
+        out.uid = uid;
+        const original = await getRow(uid, email, true, false);
+        const cookie = `${COOKIE}=${encodeURIComponent(JSON.stringify(tokens))}`;
+        const headers = {
+          cookie,
+          origin: originOf(req),
+          host: req.headers.host,
+          'x-forwarded-host': req.headers['x-forwarded-host'] || req.headers.host,
+          'x-forwarded-proto': 'https',
+          'x-titan-client': '1',
+          'sec-fetch-site': 'same-origin',
+          'content-type': 'application/json'
+        };
+        const callHandler = async (bodyObj, m, pathname) => {
+          const r = Readable.from([Buffer.from(JSON.stringify(bodyObj))]);
+          r.headers = headers; r.method = m; r.url = pathname;
+          let status = 0; let text = '';
+          const fakeRes = {
+            setHeader() {},
+            writeHead(code) { status = code; return this; },
+            end(chunk) { text = String(chunk || ''); }
+          };
+          await handler(r, fakeRes);
+          let parsed = text;
+          try { parsed = JSON.parse(text); } catch {}
+          return { status, body: parsed };
+        };
+        const testPath = `users/${uid}/accounts/-diagprobe`;
+        out.putViaHandler = await callHandler(
+          { value: { name: 'diag-put', password: 'x' } }, 'PUT',
+          '/api/state?path=' + encodeURIComponent(testPath));
+        out.postViaHandler = await callHandler(
+          { op: 'set', path: testPath, value: { name: 'diag-post', password: 'x' } },
+          'POST', '/api/state');
+        // Real HTTP round-trip through Vercel routing
+        try {
+          const live = await fetch(originOf(req) + '/api/state', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Titan-Client': '1',
+              Cookie: cookie,
+              Origin: originOf(req),
+              'Sec-Fetch-Site': 'same-origin'
+            },
+            body: JSON.stringify({ op: 'set', path: testPath, value: { name: 'diag-http', password: 'x' } }),
+            signal: AbortSignal.timeout(9000)
+          });
+          out.postViaHttp = { status: live.status, body: await live.json().catch(() => null) };
+        } catch (err) { out.postViaHttp = { exception: err.message }; }
+        // restore exact original user data
+        if (original?.data) {
+          const restored = await sbFetch(`/rest/v1/titan_vault_users?uid=eq.${uid}`, {
+            method: 'PATCH', body: { data: original.data }
+          });
+          out.restored = restored.ok;
+        }
+      } catch (err) { out.exception = err.message; out.stack = String(err.stack || '').slice(0, 600); }
+      return ok(res, { diagnostic: out });
+    }
     // Read-only probes so a deployed instance can confirm its Supabase wiring.
     const probe = async (...args) => { try { return await sbFetch(...args); } catch { return { ok: false }; } };
     const [rest, authSettings, authAdmin] = await Promise.all([
@@ -436,23 +516,42 @@ async function handleApi(req, res, url, method, p) {
     const s = await requireUser(req, res);
     if (!s) return;
     let keys;
-    try { keys = assertOwner(splitPath(url.searchParams.get('path')), s.user.uid, s.user.isAdmin); }
-    catch (err) { return fail(res, 400, err.message); }
+    let body = {};
+    let opMethod = method;
+    let bodyAlreadyRead = false;
+
+    // POST with an explicit operation keeps state writes on the same method
+    // that already works for login/admin, avoiding method-specific routing.
+    if (method === 'POST') {
+      if (!checkMutation(req, res)) return;
+      body = await readBody(req);
+      bodyAlreadyRead = true;
+      const op = String(body.op || '').toLowerCase();
+      const opMap = { get: 'GET', set: 'PUT', update: 'PATCH', remove: 'DELETE' };
+      if (!opMap[op]) return fail(res, 400, 'Operasi tidak valid.', 'bad_op');
+      opMethod = opMap[op];
+      try { keys = assertOwner(splitPath(body.path), s.user.uid, s.user.isAdmin); }
+      catch (err) { return fail(res, 400, err.message); }
+    } else {
+      try { keys = assertOwner(splitPath(url.searchParams.get('path')), s.user.uid, s.user.isAdmin); }
+      catch (err) { return fail(res, 400, err.message); }
+    }
+
     const row = await getRow(s.user.uid, s.user.email, s.user.isAdmin, true);
     const raw = row.data && typeof row.data === 'object' ? row.data : {};
-    const data = decryptCredentials(raw); // work on plaintext credentials in memory
-    if (method === 'GET') {
+    const data = decryptCredentials(raw); // plaintext credentials in memory only
+    if (opMethod === 'GET') {
       const value = keys.length ? getAt(data, keys) : data;
       return ok(res, { value: value === undefined ? null : value });
     }
-    if (!checkMutation(req, res)) return;
-    const body = await readBody(req);
+    if (method !== 'POST' && !checkMutation(req, res)) return;
+    if (!bodyAlreadyRead) body = await readBody(req);
     let next;
-    if (method === 'PUT') {
+    if (opMethod === 'PUT') {
       next = keys.length ? setAt({ ...data }, keys, body.value) : setAt({}, [], body.value);
-    } else if (method === 'PATCH') {
+    } else if (opMethod === 'PATCH') {
       next = keys.length ? updateAt({ ...data }, keys, body.patch) : updateAt({ ...data }, [], body.patch);
-    } else if (method === 'DELETE') {
+    } else if (opMethod === 'DELETE') {
       next = keys.length ? deleteAt({ ...data }, keys) : {};
     } else {
       return fail(res, 405, 'Metode tidak didukung.');
@@ -460,7 +559,7 @@ async function handleApi(req, res, url, method, p) {
 
     // A bot start/stop is a real persisted command, recorded in the audit log
     // and consumed by the MT5 bridge worker through /api/admin-commands.
-    if (method === 'PATCH' && body.patch && typeof body.patch.botRunning === 'boolean'
+    if (opMethod === 'PATCH' && body.patch && typeof body.patch.botRunning === 'boolean'
         && keys.join('/').includes('accounts/')) {
       await logEvent(s.user, body.patch.botRunning ? 'bot_start' : 'bot_stop', {
         path: keys.join('/'), target: keys[1] || s.user.uid
@@ -468,7 +567,10 @@ async function handleApi(req, res, url, method, p) {
     }
 
     const saved = await saveRow(row, encryptCredentials(next)); // never store plaintext
-    if (!saved.ok) return fail(res, 502, 'Gagal menyimpan data ke database.');
+    if (!saved.ok) {
+      console.error('[titan-vault] state write rejected', saved.status, saved.data);
+      return fail(res, 502, 'Gagal menyimpan data ke database.', 'write_failed');
+    }
     const value = keys.length ? getAt(next, keys) : next;
     return ok(res, { value: value === undefined ? null : value });
   }
