@@ -18,6 +18,9 @@ const COOKIE = 'tt_session';
 const SESSION_DAYS = 7;
 const MAX_BODY = 100_000;
 const DEMO_NOTICE = 'Mode demo: tidak ada trading nyata, tidak ada pembayaran nyata, dan jangan masukkan password broker asli.';
+// HFM tick, bar and history time bases are not yet independently verified.
+// Keep website-controlled demo orders blocked until the time model is validated.
+const PILOT_ORDER_TIME_VERIFIED = false;
 const PAYMENT_METHODS = [
   { id: 'bank_demo', label: 'Transfer Bank Demo', instruction: 'Rekening demo: 0000-0000-0000 a.n. TitanTrading Demo. Jangan transfer uang nyata.' },
   { id: 'qris_demo', label: 'QRIS Demo', instruction: 'QRIS demo: TT-DEMO-QRIS. Jangan scan atau bayar di dunia nyata.' },
@@ -357,22 +360,30 @@ async function handleApi(req, res, url) {
       device.status = {connected: st.connected === true, demo: st.demo === true, ready: st.ready === true,
         enabled: st.enabled === true, balance: finite(st.balance), equity: finite(st.equity),
         positions: Number.isInteger(st.positions) && st.positions >= 0 && st.positions <= 10000 ? st.positions : null,
+        protocol: st.protocol === 2 ? 2 : 1, quoteOkXau: st.quoteOkXau === true, quoteOkBtc: st.quoteOkBtc === true,
         state: ['stopped','running','blocked'].includes(st.state) ? st.state : 'stopped'};
-      if (body.boot === true || !device.status.demo || !device.status.ready || !device.status.enabled || device.status.state === 'blocked') device.leaseUntil=0;
+      if (!PILOT_ORDER_TIME_VERIFIED || body.boot === true || !device.status.demo || !device.status.ready || !device.status.enabled || device.status.state === 'blocked') device.leaseUntil=0;
       save();
-      return ok(res, {run: device.leaseUntil > Date.now(), leaseMs: Math.max(0, Math.min(35000, device.leaseUntil - Date.now()))});
+      return ok(res, {run: device.leaseUntil > Date.now(), symbol: device.symbol || 'XAUUSD', leaseMs: Math.max(0, Math.min(35000, device.leaseUntil - Date.now()))});
     }
     if (p === '/api/pilot/status') {
       return ok(res, {online: Date.now()-device.lastSeen < 30000, lastSeen:device.lastSeen,
-        status:device.status, runningRequested:device.leaseUntil > Date.now()});
+        status:device.status, symbol:device.symbol || 'XAUUSD', runningRequested:device.leaseUntil > Date.now()});
     }
     if (p === '/api/pilot/control') {
       if (body.action === 'stop') {device.leaseUntil=0; save(); return ok(res,{runningRequested:false});}
       if (!['start','renew'].includes(body.action)) return fail(res,400,'Perintah tidak dikenal.');
+      if (!PILOT_ORDER_TIME_VERIFIED) return fail(res,400,'Order demo diblokir: waktu tick, candle, dan riwayat HFM belum tervalidasi.');
       if (body.action === 'renew' && device.leaseUntil <= Date.now()) return fail(res,400,'Izin berjalan berakhir; tekan Start lagi.');
+      const symbol = body.symbol || 'XAUUSD';
+      if (!['XAUUSD','#BTCUSD'].includes(symbol)) return fail(res,400,'Simbol tidak didukung.');
+      if (device.status?.protocol !== 2) return fail(res,400,'Perbarui penghubung laptop sebelum menjalankan bot.');
+      if (body.action === 'renew' && symbol !== (device.symbol || 'XAUUSD')) return fail(res,400,'Simbol berbeda; hentikan bot sebelum mengganti.');
+      if (body.action === 'start' && device.leaseUntil > Date.now() && symbol !== (device.symbol || 'XAUUSD')) return fail(res,400,'Hentikan bot sebelum mengganti simbol.');
+      if ((symbol === '#BTCUSD' && !device.status?.quoteOkBtc) || (symbol === 'XAUUSD' && !device.status?.quoteOkXau)) return fail(res,400,'Harga tidak segar atau waktu tick tidak valid; order diblokir.');
       if (Date.now()-device.lastSeen >= 30000 || !device.status?.demo || !device.status?.ready || !device.status?.enabled || device.status?.state === 'blocked')
         return fail(res,400,'Laptop belum online, akun demo belum siap, atau bot sedang diblokir.');
-      device.leaseUntil=Date.now()+35000; save();
+      device.symbol=symbol; device.leaseUntil=Date.now()+35000; save();
       return ok(res, {runningRequested:true});
     }
     return fail(res,404,'Perintah tidak ditemukan.');

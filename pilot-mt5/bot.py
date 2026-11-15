@@ -235,7 +235,8 @@ def run_cycle(mt5, symbol, state, now):
     bar = dt.datetime.fromisoformat(signal['last_bar_utc'])
     if not 0 <= (now - (bar + dt.timedelta(minutes=5))).total_seconds() <= 60:
         return 'Sinyal terlalu lama; menunggu candle berikutnya'
-    marker = 'entry:' + bar.isoformat()
+    # Preserve legacy XAU intent keys; namespace BTC to avoid cross-symbol collisions.
+    marker = ('entry:' if symbol == 'XAUUSD' else 'entry:' + symbol + ':') + bar.isoformat()
     if state.execute('SELECT 1 FROM intents WHERE account=? AND marker=?', (account_key, marker)).fetchone():
         return 'Candle ini sudah diproses'
     if int(info.trade_mode) not in (mt5.SYMBOL_TRADE_MODE_FULL, mt5.SYMBOL_TRADE_MODE_LONGONLY):

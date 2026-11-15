@@ -45,7 +45,7 @@ def number(x):
 
 def snapshot(mt5, enabled, state):
     """No broker credentials, server names or account numbers leave the laptop."""
-    st = {'connected': False, 'demo': False, 'ready': False, 'enabled': enabled, 'state': state}
+    st = {'connected': False, 'demo': False, 'ready': False, 'enabled': enabled, 'state': state, 'protocol': 2}
     account = mt5.account_info()
     terminal = mt5.terminal_info()
     if not account or not terminal or not terminal.connected:
@@ -61,6 +61,12 @@ def snapshot(mt5, enabled, state):
         st['ready'] = positions is not None
     except bot.Blocked:
         pass
+    for key, symbol in (('quoteOkXau','XAUUSD'),('quoteOkBtc','#BTCUSD')):
+        try:
+            bot.fresh_tick(mt5, symbol, dt.datetime.now(bot.UTC))
+            st[key] = True
+        except (bot.Blocked, TypeError, ValueError):
+            st[key] = False
     return st, account
 
 
@@ -88,7 +94,7 @@ def main():
     parser=argparse.ArgumentParser(description='Penghubung TITAN HFM MT5 DEMO saja')
     parser.add_argument('--setup', action='store_true')
     parser.add_argument('--show-device', action='store_true')
-    parser.add_argument('--symbol', default='XAUUSD')
+    parser.add_argument('--symbol', default='XAUUSD', help='Dipertahankan untuk kompatibilitas; simbol order dipilih di website')
     parser.add_argument('--terminal', default=None)
     parser.add_argument('--enable-demo-trading', action='store_true', help='Izinkan order DEMO yang diminta website; default mati')
     args=parser.parse_args()
@@ -118,14 +124,23 @@ def main():
             try:
                 status, account=snapshot(mt5,args.enable_demo_trading,last_state)
                 started=time.monotonic()
-                result=heartbeat(credentials,status,boot=boot)
+                was_boot=boot
+                result=heartbeat(credentials,status,boot=was_boot)
                 boot=False
                 # Conservative: any request delay reduces the server lease.
                 remaining=float(result['leaseMs'])/1000 - (time.monotonic()-started)
-                run=result.get('run') is True and remaining > 2 and args.enable_demo_trading and status['ready'] and account is not None
+                run=(not was_boot and result.get('run') is True and remaining > 2 and args.enable_demo_trading and status['ready'] and account is not None)
                 if run:
+                    symbol=result.get('symbol')
+                    if symbol not in ('XAUUSD','#BTCUSD'):
+                        raise bot.Blocked('perintah simbol dari website tidak valid')
+                    positions=mt5.positions_get()
+                    if positions is None:
+                        raise bot.Blocked('posisi tidak dapat diperiksa')
+                    if any(p.magic == bot.MAGIC and p.symbol != symbol for p in positions):
+                        raise bot.Blocked('ada posisi bot pada simbol lain; periksa dan tutup sebelum mengganti')
                     bind_account(state_db,account)
-                    print(bot.run_cycle(mt5,args.symbol,state_db,dt.datetime.now(bot.UTC)),flush=True)
+                    print(bot.run_cycle(mt5,symbol,state_db,dt.datetime.now(bot.UTC)),flush=True)
                     last_state='running'
                 else: last_state='stopped'
             except bot.Blocked as e:

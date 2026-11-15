@@ -1,6 +1,6 @@
 # Titan — penghubung laptop MT5 demo (eksperimental)
 
-Penghubung ini BARU dan belum diuji end-to-end pada terminal HFM. Tes yang ada memakai mock, bukan broker nyata. **Jangan aktifkan order sebelum uji koneksi read-only bersama saat pasar tersedia.** Akun real diblokir, bot hanya untuk HFM MT5 demo hedging. MT4 belum tersedia. Tidak ada analisis berita, tidak ada jaminan profit atau batas rugi.
+Penghubung ini BARU dan belum diuji end-to-end pada terminal HFM. Satu tes order BTC demo terpisah telah dibuka dan ditutup, namun tes bot/website yang tersedia masih memakai mock, bukan broker nyata. **Jangan aktifkan order sebelum uji koneksi read-only bersama saat pasar tersedia.** Akun real diblokir, bot hanya untuk HFM MT5 demo hedging. Pilih XAUUSD atau #BTCUSD dari panel admin, satu simbol dalam satu waktu. MT4 belum tersedia. Tidak ada analisis berita, tidak ada jaminan profit atau batas rugi.
 
 Portal masih portal demo yang admin bawaannya bisa diakses publik. Kunci perangkat ini melindungi perintah perangkat secara terpisah, tetapi sistem keseluruhan belum diaudit dan tidak aman untuk data atau trading nyata. Jaga kerahasiaan kunci; jangan kirimkan kunci, nomor akun, atau password broker ke chat. Jangan gunakan di komputer/terminal berisi informasi sensitif. Reset data demo pada web akan memutus pairing perangkat.
 
@@ -11,7 +11,7 @@ Portal masih portal demo yang admin bawaannya bisa diakses publik. Kunci perangk
 ```
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m unittest -v test_bridge test_bot
+.\.venv\Scripts\python.exe -m unittest -v test_bridge test_bot test_btc
 .\.venv\Scripts\python.exe bridge.py --setup
 ```
 
@@ -36,3 +36,13 @@ Bot adalah eksperimen ORB buy-only XAUUSD pada sesi New York, bukan strategi ter
 Jalankan satu proses saja untuk satu akun di satu laptop. File `bot-state.sqlite3` menyimpan identitas akun yang di-hash dan status intent untuk mencegah order rangkap. Jangan hapus state. Jika muncul hasil order tidak pasti atau lock, hentikan dan periksa riwayat MT5 sebelum bertindak. Jika berganti akun demo, program memblokir; jangan menghapus state tanpa rekonsiliasi. Tidak ada distributed lock untuk beberapa laptop.
 
 Ide opening-range diadaptasi secara eksperimental dari skill `trader-entry` pada https://github.com/Jakeschincariol/day-trader-skill (MIT); proyek tersebut bukan konektor HFM dan tidak memvalidasi strategi ini.
+
+## Memperbarui penghubung yang sudah terpasang
+1. Hentikan proses lama dengan Ctrl+C dan pastikan tidak ada bot lain berjalan.
+2. Ekstrak ZIP pembaruan lalu salin file program ke folder penghubung lama. Jangan hapus atau mengganti `bridge-device.json`, `bot-state.sqlite3`, `.venv`, atau file lock tanpa pemeriksaan. ZIP baru tidak berisi file pribadi tersebut.
+3. Jalankan lagi `bridge.py` tanpa flag untuk read-only, lalu pasangkan seperti biasa dengan ID dan kunci yang sama.
+4. Pilot BTC memakai ORB New York yang sama dengan emas, bukan strategi BTC 24/7. Aktifkan satu simbol saja. Jika posisi bot pada simbol lain masih terbuka, pergantian simbol diblokir; periksa dan tutup secara manual sebelum beralih. Stop tidak menutup posisi.
+
+PENTING: Pada pengujian pengguna, waktu tick dan candle HFM tampak sekitar dua jam di depan UTC. Penghubung ini belum mengoreksi perbedaan itu; ia tetap memblokir quote yang dianggap tidak valid. Tes order otomatis BTC melalui website dan strategi belum dilakukan. Jangan mengaktifkan order sebelum semantik waktu, termasuk riwayat, sudah diverifikasi dan diuji.
+
+Server yang menyertai paket ini memblokir perintah order dari website untuk kedua simbol sampai alur waktu dan batas rugi diuji. Mengganti ZIP saja tidak menambahkan blokir ke website yang masih memakai versi server lama. Mode read-only tetap dapat dijalankan.
