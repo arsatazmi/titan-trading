@@ -15,7 +15,7 @@ const MAX_BODY = 1_000_000;
 const SUPABASE_URL = String(process.env.SUPABASE_URL || 'https://zwiatrbdvetqcjivqomo.supabase.co').replace(/\/$/, '');
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3aWF0cmJkdmV0cWNqaXZxb21vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2NzU1NDcsImV4cCI6MjExMDI1MTU0N30.Z4sRf7J9SpotR55gDC9ce9By2ipfrl58docBSUCDLmk';
-const ADMIN_EMAILS = String(process.env.ADMIN_EMAILS || 'arsatazmi12@gmail.com')
+const ADMIN_EMAILS = String(process.env.ADMIN_EMAILS || 'arsatazmi12@gmail.com,starboy@titanvault.local,starboy')
   .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 const GOOGLE_OAUTH_ENABLED = process.env.GOOGLE_OAUTH_ENABLED === 'true';
 
@@ -257,7 +257,16 @@ async function getSession(req, res) {
     }
   }
   if (!u.ok) { clearCookie(res, req); return null; }
-  return { user: publicUser(u.data, tokens), tokens };
+  const user = publicUser(u.data, tokens);
+  // Ownership is persisted in the database, so it survives env/config changes
+  // and works for username-based accounts too.
+  if (!user.isAdmin) {
+    try {
+      const row = await getRow(user.uid, user.email, false, false);
+      if (row?.is_admin) user.isAdmin = true;
+    } catch { /* env list still applies */ }
+  }
+  return { user, tokens };
 }
 async function requireUser(req, res) {
   const s = await getSession(req, res);
@@ -472,6 +481,7 @@ async function handleApi(req, res, url, method, p) {
         uid: row.uid,
         email: d.login || d.email || row.email,
         name: d.name || '',
+        isOwner: !!row.is_admin || ADMIN_EMAILS.includes(String(row.email || '').toLowerCase()),
         plan: d.plan || 'bronze',
         status: d.status || 'pending',
         startedDate: d.startedDate || null,
@@ -610,3 +620,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   http.createServer((req, res) => { handler(req, res).catch(() => {}); })
     .listen(PORT, HOST, () => console.log(`Titan Vault berjalan di http://${HOST}:${PORT}`));
 }
+
+// Exported for the smoke test's pure-function checks.
+export { normalizeLogin, publicUser };

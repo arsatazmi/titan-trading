@@ -41,7 +41,7 @@ vercel.json                Konfigurasi Vercel
 | `SUPABASE_URL` | `https://zwiatrbdvetqcjivqomo.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Kunci service role — hanya sisi server, jangan pernah dikirim ke browser |
 | `SUPABASE_ANON_KEY` | Kunci anon untuk endpoint token Supabase Auth |
-| `ADMIN_EMAILS` | Daftar email master dipisah koma (default `arsatazmi12@gmail.com`) |
+| `ADMIN_EMAILS` | Daftar owner/master dipisah koma (`arsatazmi12@gmail.com`, `starboy@titanvault.local`). Flag `titan_vault_users.is_admin` di database juga dihormati sebagai owner. |
 | `GOOGLE_OAUTH_ENABLED` | `false` sampai provider Google diaktifkan di Supabase Auth |
 
 Salin `.env.example` ke `.env` untuk menjalankan lokal, lalu:

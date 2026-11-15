@@ -18,8 +18,9 @@ AKUN
 ----
 - Login bisa memakai username (tanpa @) maupun email. Username dipetakan ke
   identitas internal @titanvault.local di Supabase Auth.
-- Akun `starboy` sudah dibuat: status ACTIVE, paket BRONZE, bukan master.
-- Master tetap `arsatazmi12@gmail.com` (daftar dengan email itu untuk akses /admin).
+- Akun `starboy` sudah dibuat: status ACTIVE, paket BRONZE, dan sekarang **OWNER/MASTER**.
+- Owner: `starboy` dan `arsatazmi12@gmail.com`. Keduanya bisa membuka /admin.
+- Status owner disimpan di `ADMIN_EMAILS` (Vercel) DAN `titan_vault_users.is_admin` (Supabase).
 
 VERIFIKASI LIVE
 ---------------

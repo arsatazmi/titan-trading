@@ -3,6 +3,10 @@
 // Set TITAN_LIVE_BASE to run the same checks against a deployed instance.
 import { spawn } from 'node:child_process';
 
+// Keep the local test aligned with the production owner list.
+process.env.ADMIN_EMAILS = process.env.ADMIN_EMAILS || 'arsatazmi12@gmail.com,starboy@titanvault.local,starboy';
+const { normalizeLogin, publicUser } = await import('../server.mjs');
+
 const BASE = process.env.TITAN_LIVE_BASE || `http://127.0.0.1:${process.env.SMOKE_PORT || 3457}`;
 let proc = null;
 let passed = 0;
@@ -61,6 +65,9 @@ try {
   check('portal uses real backend bridge', page.text.includes('/backend.js'));
   check('portal has no simulated flag', !/demo|simulasi|simulation/i.test(page.text));
   check('login accepts username ids', page.text.includes('Email or username'));
+  check('username starboy maps to internal identity', normalizeLogin('starboy') === 'starboy@titanvault.local');
+  check('starboy is recognised as owner', publicUser({ id: 'x', email: 'starboy@titanvault.local', user_metadata: { login: 'starboy' } }).isAdmin === true);
+  check('ordinary user is not owner', publicUser({ id: 'y', email: 'client@example.com' }).isAdmin === false);
 
   const admin = await req('/admin.html');
   check('master dashboard served', admin.status === 200 && admin.text.includes('Master Dashboard'));

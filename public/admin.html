@@ -146,7 +146,7 @@
             <div class="card">
               <div class="card-head">
                 <div>
-                  <div class="email">${esc(u.email || u.name || 'Unknown user')}</div>
+                  <div class="email">${esc(u.email || u.name || 'Unknown user')} ${u.isOwner ? '<span class="badge active" style="margin-left:6px">Owner</span>' : ''}</div>
                   <div class="uid">${esc(u.uid)}</div>
                 </div>
                 ${badge(u.status)}
