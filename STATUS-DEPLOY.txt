@@ -42,12 +42,12 @@ PERBAIKAN (15 Nov 2026, 14:15 UTC)
 VERIFIKASI LIVE
 ---------------
 - /api/health          : healthy, checks.database / authAnonKey / authAdminApi = true
-- /api/config          : 3 paket USD + 3 metode pembayaran sesuai referensi
+- /api/config          : 3 paket USD + 2 metode bayar (DANA, Mandiri) + WA owner
 - / , /admin, /backend.js, /auth-callback.html : 200
 - /api/state, /api/admin-users, /api/admin-commands, /api/admin-events : 401 tanpa sesi
 - Uji nyata daftar -> masuk -> token -> tulis -> baca database -> hapus akun uji: LULUS
 - Akun uji tersisa di auth.users: 0
-- npm run smoke: 19 passed, 0 failed
+- npm run smoke: 29 passed, 0 failed
 
 CATATAN
 -------
@@ -56,5 +56,38 @@ CATATAN
 - Eksekusi order MT5 berada di worker/bridge pada mesin dengan terminal MT5.
   Portal menyimpan perintah start/stop nyata dan menyajikannya di /api/admin-commands.
 - taitanxbot.online hanya referensi tampilan, tidak dipetakan ke proyek ini.
+
+YANG MASIH DIBUTUHKAN UNTUK BOT TRADING SUNGUHAN
+-------------------------------------------------
+Status jujur: portal saat ini HANYA menyimpan perintah start/stop ke database dan
+audit log. Belum ada satupun order yang dikirim ke broker oleh portal ini.
+
+1. Mesin Windows yang menyala 24/5 dengan terminal MT5 terpasang, sudah login ke
+   akun broker, Algo Trading aktif, simbol XAUUSD aktif. Bisa laptop, tetapi VPS
+   Windows lebih aman (tidak mati saat laptop ditutup / listrik / WiFi putus).
+   Vercel serverless TIDAK bisa: stateless, maks 30 detik, tidak ada terminal MT5
+   dan tidak bisa menjaga koneksi ke server broker.
+2. Strategi/EA XAUUSD produksi. `pilot-mt5/` hanya riset: `bot.py::demo_only()`
+   menolak akun real, order butuh flag lokal `--enable-demo-trading`, dan README
+   riset menyatakan jalur web -> MT5 belum teruji end-to-end.
+3. Worker/bridge produksi di mesin itu. Yang tersedia sekarang:
+   - `GET /api/admin-commands` (feed perintah, tapi butuh sesi browser master).
+   - `pilot-mt5/bridge.py` memanggil `/api/pilot/heartbeat`; endpoint itu dicek
+     live = 404, jadi prototipe lama TIDAK tersambung ke portal ini.
+   Belum ada: autentikasi khusus perangkat (API key), dan cara aman memberi
+   password broker ke worker (feed sengaja tidak memuat password).
+4. Pengaman trading: batas lot, batas rugi harian, kill switch, rekonsiliasi
+   posisi/order yang hasilnya tidak pasti. Uji demo dulu sebelum akun real.
+
+SEBELUM DIPAKAI KLIEN (prioritas keamanan)
+-----------------------------------------
+- `/api/state` belum membatasi field: user login masih bisa menulis `status`,
+  `plan`, `startedDate`, `renewalDate` lewat API langsung. Perlu allowlist +
+  gate admin untuk field istimewa. Ini celah self-aktivasi paket gratis.
+- Konfirmasi pembayaran masih manual oleh owner (cek mutasi DANA/Mandiri, lalu
+  klik Confirm di /admin). Belum ada payment gateway / webhook bank.
+- Google OAuth & SMTP Supabase nonaktif -> belum ada reset password via email.
+- `server.mjs` masih punya fallback Supabase URL/anon key hard-coded.
+- Harga masih USD, rekening sudah IDR; domain masih *.vercel.app.
 
 Lihat README.md (fitur, env, struktur) dan DEPLOY.md (konfigurasi & deploy ulang).
