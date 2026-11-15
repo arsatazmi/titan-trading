@@ -8,6 +8,7 @@ import json
 import sys
 import bridge
 import bot
+import hfm_demo_clock
 
 class FakeMT5:
     ACCOUNT_TRADE_MODE_DEMO=0
@@ -23,9 +24,15 @@ class BridgeTests(unittest.TestCase):
     def test_demo_snapshot_does_not_send_identity(self):
         st,a=bridge.snapshot(FakeMT5(),False,'stopped')
         self.assertTrue(st['demo']); self.assertTrue(st['ready']); self.assertFalse(st['enabled']);self.assertNotIn('login',st);self.assertNotIn('server',st)
-    def test_future_btc_quote_is_not_ready(self):
+    def test_hfm_observed_quote_is_ready(self):
         fake=FakeMT5()
-        fake.symbol_info_tick=lambda symbol:NS(bid=100,ask=101,time=__import__('time').time()+7200)
+        now=__import__('datetime').datetime.now(bot.UTC)
+        offset=hfm_demo_clock.ClockWindow.candidate(now,now).offset.total_seconds()
+        fake.symbol_info_tick=lambda symbol:NS(bid=100,ask=101,time=__import__('time').time()+offset)
+        st,_=bridge.snapshot(fake,True,'stopped')
+        self.assertTrue(st['quoteOkBtc']); self.assertEqual(st['protocol'],3)
+    def test_wrong_offset_quote_is_not_ready(self):
+        fake=FakeMT5()
         st,_=bridge.snapshot(fake,True,'stopped')
         self.assertFalse(st['quoteOkBtc'])
 
@@ -44,7 +51,7 @@ class BridgeTests(unittest.TestCase):
             fake.positions_get=lambda: [NS(magic=bot.MAGIC,symbol='XAUUSD')]
             def hb(credentials,status,url=bridge.URL,boot=False):
                 return {'ok':True,'run':not boot,'leaseMs':30000,'symbol':'#BTCUSD'}
-            with patch.object(bridge,'BASE',d),patch.object(bridge,'CONFIG',config),patch.dict(sys.modules,{'MetaTrader5':fake}),patch.object(sys,'argv',['bridge.py','--enable-demo-trading']),patch.object(bridge,'heartbeat',side_effect=hb),patch.object(bridge.time,'sleep',side_effect=[None,KeyboardInterrupt()]),patch.object(bot,'run_cycle') as cycle:
+            with patch.object(bridge,'BASE',d),patch.object(bridge,'CONFIG',config),patch.dict(sys.modules,{'MetaTrader5':fake}),patch.object(sys,'argv',['bridge.py','--enable-demo-trading']),patch.object(bridge,'heartbeat',side_effect=hb),patch.object(bridge.time,'sleep',side_effect=[None,KeyboardInterrupt()]),patch.object(hfm_demo_clock,'run_demo_cycle') as cycle:
                 bridge.main()
                 cycle.assert_not_called()
 
@@ -54,7 +61,7 @@ class BridgeTests(unittest.TestCase):
             fake=FakeMT5();fake.initialize=lambda **kw: True;fake.shutdown=lambda:None
             def hb(credentials,status,url=bridge.URL,boot=False):
                 return {'ok':True,'run':not boot,'leaseMs':30000,'symbol':'UNSUPPORTED'}
-            with patch.object(bridge,'BASE',d),patch.object(bridge,'CONFIG',config),patch.dict(sys.modules,{'MetaTrader5':fake}),patch.object(sys,'argv',['bridge.py','--enable-demo-trading']),patch.object(bridge,'heartbeat',side_effect=hb),patch.object(bridge.time,'sleep',side_effect=[None,KeyboardInterrupt()]),patch.object(bot,'run_cycle') as cycle:
+            with patch.object(bridge,'BASE',d),patch.object(bridge,'CONFIG',config),patch.dict(sys.modules,{'MetaTrader5':fake}),patch.object(sys,'argv',['bridge.py','--enable-demo-trading']),patch.object(bridge,'heartbeat',side_effect=hb),patch.object(bridge.time,'sleep',side_effect=[None,KeyboardInterrupt()]),patch.object(hfm_demo_clock,'run_demo_cycle') as cycle:
                 bridge.main()
                 cycle.assert_not_called()
 
@@ -70,7 +77,7 @@ class BridgeTests(unittest.TestCase):
                     calls.append(boot)
                     return {'ok':True,'run':not boot,'leaseMs':30000,'symbol':'#BTCUSD'}
                 args=['bridge.py']+(['--enable-demo-trading'] if enabled else [])
-                with patch.object(bridge,'BASE',d),patch.object(bridge,'CONFIG',config),patch.dict(sys.modules,{'MetaTrader5':fake}),patch.object(sys,'argv',args),patch.object(bridge,'heartbeat',side_effect=hb),patch.object(bridge.time,'sleep',side_effect=[None,KeyboardInterrupt()]),patch.object(bot,'run_cycle',return_value='mock') as cycle:
+                with patch.object(bridge,'BASE',d),patch.object(bridge,'CONFIG',config),patch.dict(sys.modules,{'MetaTrader5':fake}),patch.object(sys,'argv',args),patch.object(bridge,'heartbeat',side_effect=hb),patch.object(bridge.time,'sleep',side_effect=[None,KeyboardInterrupt()]),patch.object(hfm_demo_clock,'run_demo_cycle',return_value='mock') as cycle:
                     bridge.main()
                     self.assertEqual(calls,[True,False]);self.assertEqual(cycle.call_count, 1 if enabled else 0)
                     if enabled: self.assertEqual(cycle.call_args.args[1], '#BTCUSD')

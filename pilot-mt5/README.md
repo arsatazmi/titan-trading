@@ -1,48 +1,43 @@
-# Titan — penghubung laptop MT5 demo (eksperimental)
+# Titan — penghubung HFM MT5 demo (eksperimental)
 
-Penghubung ini BARU dan belum diuji end-to-end pada terminal HFM. Satu tes order BTC demo terpisah telah dibuka dan ditutup, namun tes bot/website yang tersedia masih memakai mock, bukan broker nyata. **Jangan aktifkan order sebelum uji koneksi read-only bersama saat pasar tersedia.** Akun real diblokir, bot hanya untuk HFM MT5 demo hedging. Pilih XAUUSD atau #BTCUSD dari panel admin, satu simbol dalam satu waktu. MT4 belum tersedia. Tidak ada analisis berita, tidak ada jaminan profit atau batas rugi.
+**Hanya untuk akun DEMO HFM MT5 hedging.** Akun real dan netting diblokir. Perintah dari web baru dapat membuat order setelah flag lokal diberikan dan tombol Start demo ditekan. Jalur strategi otomatis web → MT5 **belum diuji end-to-end pada broker**. Satu order BTC demo terpisah pernah dibuka dan ditutup; itu bukan bukti strategi web bekerja. Hasil, profit, penutupan dan batas rugi tidak dijamin.
 
-Portal masih portal demo yang admin bawaannya bisa diakses publik. Kunci perangkat ini melindungi perintah perangkat secara terpisah, tetapi sistem keseluruhan belum diaudit dan tidak aman untuk data atau trading nyata. Jaga kerahasiaan kunci; jangan kirimkan kunci, nomor akun, atau password broker ke chat. Jangan gunakan di komputer/terminal berisi informasi sensitif. Reset data demo pada web akan memutus pairing perangkat.
+Portal demo ini belum diaudit dan memiliki akun admin demo lemah/terbuka. Jangan gunakan untuk trading nyata, pembayaran, kredensial broker, atau data sensitif. Jangan bagikan ID/kunci perangkat, nomor akun, atau password broker di chat. Reset data demo di website akan memutus pairing.
 
-## 1. Persiapan laptop Windows
-- Pastikan MT5 HFM sudah login manual ke akun DEMO hedging, tersambung dan simbol XAUUSD tersedia di Market Watch. Jangan masukkan password broker ke aplikasi ini.
-- Ekstrak ZIP ke folder tetap, buka PowerShell di dalam folder itu. Jika Python tersedia sebagai `py`, jalankan:
+## Memperbarui penghubung yang sudah ada
 
+1. Pastikan MT5 login ke akun **demo HFM hedging**, dan periksa tab Trade serta History untuk order yang belum pasti. Stop semua proses bot lain, lalu di PowerShell lama tekan `Ctrl+C`. Stop tidak menutup posisi yang sudah ada.
+2. Ekstrak ZIP pembaruan, lalu salin **hanya file program dan README** ke folder penghubung lama. Pertahankan `bridge-device.json`, `bot-state.sqlite3`, `.venv`, file lock, dan seluruh data pribadi. Jangan hapus state/lock untuk mengatasi hasil order yang tidak pasti.
+3. Di folder penghubung, uji dependensi secara offline:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest -v test_bridge test_bot test_btc test_hfm_demo_clock test_hfm_clock_research test_shadow_daily_risk
 ```
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m unittest -v test_bridge test_bot test_btc
-.\.venv\Scripts\python.exe bridge.py --setup
-```
 
-Perintah terakhir membuat file rahasia `bridge-device.json` dan menampilkan ID serta kunci perangkat. Simpan file itu secara privat, jangan unggah/berikan kepada siapa pun. Jika ingin melihat lagi pada laptop: `.\.venv\Scripts\python.exe bridge.py --show-device`.
+4. Jalankan mode pantau read-only:
 
-## 2. Sambungkan ke website dalam mode read-only
-1. Login admin di https://titan-trading-puce.vercel.app/admin.
-2. Di bagian **Hubungkan laptop MT5 demo**, ketik ID dan kunci perangkat dari laptop lalu klik **Hubungkan**. Kunci hanya disimpan sementara di form browser.
-3. Jalankan di PowerShell:
-
-```
+```powershell
 .\.venv\Scripts\python.exe bridge.py
 ```
 
-Program ini default **read-only** dan tidak menerima izin order. Tunggu sekitar 10–30 detik lalu lihat status laptop di panel. Saldo, equity, jumlah posisi, dan status demo dapat dikirim ke web; password dan nomor login broker tidak dikirim. Status bukan feed tick realtime dan dapat terlambat. Buka PowerShell dan MT5 terus-menerus; Ctrl+C berhenti.
+Login di https://titan-trading-puce.vercel.app/admin dan hubungkan ID/kunci perangkat lama. Untuk melihat kembali di laptop: ` .\.venv\Scripts\python.exe bridge.py --show-device`. Jangan kirim hasilnya ke chat. Status laptop dapat mengirim saldo/equity dan jumlah posisi ke web, tanpa nomor akun atau password broker. Status bukan feed realtime penuh.
 
-## 3. Kontrol order (jangan jalankan sebelum pengujian HFM)
-Program hanya dapat memproses perintah order setelah pengguna memulai ulang dengan flag lokal `--enable-demo-trading`, lalu menekan **Start demo** di panel admin. Flag ini dapat membuka dan menutup order otomatis pada akun demo yang sedang aktif. **Prototipe ini belum diuji dengan HFM; jangan aktifkan sekarang.** Start memerlukan halaman panel terbuka: jika tidak diperbarui atau sambungan hilang, izin siklus baru kedaluwarsa setelah sekitar 35 detik, ditambah waktu pemeriksaan sampai 10 detik. Siklus yang sudah berjalan bisa selesai lebih lambat. Stop tidak membatalkan order yang sudah terkirim dan tidak menutup posisi yang sudah terbuka. Periksa MT5 secara langsung.
+## Menjalankan demo (eksperimental)
 
-Bot adalah eksperimen ORB buy-only XAUUSD pada sesi New York, bukan strategi teruji, tidak memakai berita, dan mungkin tidak membuka order saat syarat belum terpenuhi. Estimasi 0,5% per order, 1% risiko gabungan/rugi harian, dan maksimal 20 posisi bukan jaminan. Slippage, spread, gap, komisi, disconnect, order yang ditolak, serta order manual dapat menyebabkan rugi lebih besar. Penutupan pada profit tidak dijamin.
+- Tutup semua EA/bot lain dan pastikan tidak ada proses bridge lain. Di MT5 demo, Algo Trading dan izin akun harus aktif; menyalakannya juga bisa mengaktifkan EA lain, jadi cek terlebih dahulu.
+- Hentikan proses read-only dengan `Ctrl+C`, lalu jalankan:
 
-Jalankan satu proses saja untuk satu akun di satu laptop. File `bot-state.sqlite3` menyimpan identitas akun yang di-hash dan status intent untuk mencegah order rangkap. Jangan hapus state. Jika muncul hasil order tidak pasti atau lock, hentikan dan periksa riwayat MT5 sebelum bertindak. Jika berganti akun demo, program memblokir; jangan menghapus state tanpa rekonsiliasi. Tidak ada distributed lock untuk beberapa laptop.
+```powershell
+.\.venv\Scripts\python.exe bridge.py --enable-demo-trading
+```
 
-Ide opening-range diadaptasi secara eksperimental dari skill `trader-entry` pada https://github.com/Jakeschincariol/day-trader-skill (MIT); proyek tersebut bukan konektor HFM dan tidak memvalidasi strategi ini.
+- Pilih **XAUUSD** atau **#BTCUSD**, lalu klik **Start demo**. Server hanya menerima bridge protokol 3 terbaru dan quote yang terbaca valid. Tetap buka panel, laptop dan MT5; izin berjalan diperbarui tiap beberapa detik dan habis sekitar 35 detik setelah sambungan terputus. Siklus yang sedang berjalan masih dapat selesai setelah Stop atau lease kedaluwarsa. Stop tidak otomatis menutup posisi; periksa tab Trade MT5.
+- Hanya satu simbol dalam satu waktu. Jika posisi bot pada simbol lain masih terbuka, perpindahan diblokir. Sinyal BTC memakai ORB BUY sesi New York yang sama dengan XAUUSD, **bukan** strategi 24 jam; bot bisa menunggu lama dan mungkin tidak membuka order. Tidak ada filter berita. Awal rentang 09:30 NY, sesudah 15 menit menunggu breakout candle M5; jendela hingga 15:30 NY.
+- Eksperimen target 0,5% per order, 1% risiko gabungan/rugi harian dan maksimal 20 posisi. Ini estimasi, **bukan batas kerugian**. Spread, komisi, gap, slippage, posisi manual, gangguan jaringan, hasil order tidak pasti, atau penolakan broker bisa mengubah hasil. TP disetel sekitar 2R; penutupan profit tidak dijamin.
+- Saat hasil order tidak pasti, bot menyimpan intent dan memblokir order baru. Jangan hapus `bot-state.sqlite3` atau lock tanpa memeriksa posisi serta riwayat MT5. Tidak ada distributed lock untuk laptop lain: jangan jalankan bridge lain pada akun yang sama.
 
-## Memperbarui penghubung yang sudah terpasang
-1. Hentikan proses lama dengan Ctrl+C dan pastikan tidak ada bot lain berjalan.
-2. Ekstrak ZIP pembaruan lalu salin file program ke folder penghubung lama. Jangan hapus atau mengganti `bridge-device.json`, `bot-state.sqlite3`, `.venv`, atau file lock tanpa pemeriksaan. ZIP baru tidak berisi file pribadi tersebut.
-3. Jalankan lagi `bridge.py` tanpa flag untuk read-only, lalu pasangkan seperti biasa dengan ID dan kunci yang sama.
-4. Pilot BTC memakai ORB New York yang sama dengan emas, bukan strategi BTC 24/7. Aktifkan satu simbol saja. Jika posisi bot pada simbol lain masih terbuka, pergantian simbol diblokir; periksa dan tutup secara manual sebelum beralih. Stop tidak menutup posisi.
+## Waktu server HFM
 
-PENTING: Pada pengujian pengguna, waktu tick dan candle HFM tampak sekitar dua jam di depan UTC. Penghubung ini belum mengoreksi perbedaan itu; ia tetap memblokir quote yang dianggap tidak valid. Tes order otomatis BTC melalui website dan strategi belum dilakukan. Jangan mengaktifkan order sebelum semantik waktu, termasuk riwayat, sudah diverifikasi dan diuji.
+Sampel pada 15 November 2026 menunjukkan waktu tick, candle dan transaksi sekitar dua jam di depan UTC. Bridge ini memakai model kandidat waktu server HFM GMT+2 musim dingin/GMT+3 musim panas, bukan offset +2 tetap; model memblokir siklus bila data/quote tidak konsisten atau dekat perubahan DST yang diperkirakan. Jam perubahan broker dan kelengkapan riwayat belum dibuktikan untuk seluruh musim. Jam laptop harus benar. Perhitungan rugi memakai hari New York dan dua pembacaan riwayat; transaksi penyesuaian saldo atau credit membuat proses berhenti. Ini tetap tidak menjamin perhitungan sempurna.
 
-Server yang menyertai paket ini memblokir perintah order dari website untuk kedua simbol sampai alur waktu dan batas rugi diuji. Mengganti ZIP saja tidak menambahkan blokir ke website yang masih memakai versi server lama. Mode read-only tetap dapat dijalankan.
+Ide opening-range diadaptasi secara eksperimental dari `trader-entry` pada https://github.com/Jakeschincariol/day-trader-skill (MIT); proyek itu bukan konektor HFM dan tidak memvalidasi strategi ini.

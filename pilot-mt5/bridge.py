@@ -13,6 +13,7 @@ import urllib.error
 import urllib.request
 
 import bot
+import hfm_demo_clock
 
 BASE = Path(__file__).resolve().parent
 CONFIG = BASE / 'bridge-device.json'
@@ -45,7 +46,7 @@ def number(x):
 
 def snapshot(mt5, enabled, state):
     """No broker credentials, server names or account numbers leave the laptop."""
-    st = {'connected': False, 'demo': False, 'ready': False, 'enabled': enabled, 'state': state, 'protocol': 2}
+    st = {'connected': False, 'demo': False, 'ready': False, 'enabled': enabled, 'state': state, 'protocol': 3}
     account = mt5.account_info()
     terminal = mt5.terminal_info()
     if not account or not terminal or not terminal.connected:
@@ -63,7 +64,7 @@ def snapshot(mt5, enabled, state):
         pass
     for key, symbol in (('quoteOkXau','XAUUSD'),('quoteOkBtc','#BTCUSD')):
         try:
-            bot.fresh_tick(mt5, symbol, dt.datetime.now(bot.UTC))
+            hfm_demo_clock.normalized_tick(mt5, symbol, dt.datetime.now(bot.UTC))
             st[key] = True
         except (bot.Blocked, TypeError, ValueError):
             st[key] = False
@@ -140,7 +141,7 @@ def main():
                     if any(p.magic == bot.MAGIC and p.symbol != symbol for p in positions):
                         raise bot.Blocked('ada posisi bot pada simbol lain; periksa dan tutup sebelum mengganti')
                     bind_account(state_db,account)
-                    print(bot.run_cycle(mt5,symbol,state_db,dt.datetime.now(bot.UTC)),flush=True)
+                    print(hfm_demo_clock.run_demo_cycle(mt5,symbol,state_db,dt.datetime.now(bot.UTC)),flush=True)
                     last_state='running'
                 else: last_state='stopped'
             except bot.Blocked as e:

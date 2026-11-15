@@ -28,8 +28,8 @@
       <label for="pilotId">ID perangkat</label><input id="pilotId" autocomplete="off" placeholder="ID dari laptop"/>
       <label for="pilotSecret">Kunci perangkat</label><input id="pilotSecret" type="password" autocomplete="off" placeholder="Kunci dari laptop"/>
       <label for="pilotSymbol">Simbol bot demo</label><select id="pilotSymbol"><option value="XAUUSD">Emas · XAUUSD</option><option value="#BTCUSD">Bitcoin · #BTCUSD</option></select>
-      <p class="small muted">Pilihan simbol disiapkan untuk percobaan berikutnya. BTC memakai eksperimen breakout sesi New York yang sama, bukan strategi 24 jam. Satu tes order demo terpisah berhasil, tetapi alur otomatis dari website belum diuji.</p>
-      <div class="notice"><strong>Order demo belum aktif.</strong> Penyesuaian waktu dan batas rugi perlu pengujian alur otomatis; Start diblokir untuk kedua simbol. Pantauan tetap tersedia.</div>
+      <p class="small muted">Pilih satu simbol. BTC menggunakan eksperimen breakout sesi New York yang sama, bukan strategi 24 jam. Alur order otomatis website belum diuji end-to-end pada HFM.</p>
+      <div class="notice"><strong>Demo eksperimental saja.</strong> Start dapat membuka dan menutup order demo. Stop tidak menutup posisi. Tidak ada jaminan profit atau batas rugi; jangan gunakan akun real.</div>
       <div class="row mt"><button class="btn btn-ghost" type="button" id="pilotPair">Hubungkan</button><button class="btn btn-green" type="button" id="pilotStart" disabled>Start demo</button><button class="btn btn-danger" type="button" id="pilotStop" disabled>Stop demo</button></div>
       <p id="pilotStatus" role="status" class="small muted mt">Belum terhubung.</p>
       <p class="small muted">Start hanya bekerja saat jendela ini terbuka dan laptop mengizinkan trading demo secara eksplisit. Hilang koneksi menghentikan siklus baru; posisi yang sudah terbuka tidak otomatis ditutup. Belum diuji pada broker; risiko, hasil, dan penutupan profit tidak dijamin. Jangan gunakan untuk akun real.</p>
@@ -123,11 +123,11 @@ async function pilotUpdate(){
     if(pilotRunning) await pilotCall('control',{action:'renew',symbol:$('#pilotSymbol').value});
     const x=await pilotCall('status'), s=x.status;
     $('#pilotStatus').textContent=!x.online?'Laptop offline atau belum menjalankan penghubung.':
-      `Laptop online · ${s?.demo?'akun demo':'akun bukan demo / belum terdeteksi'} · bot ${s?.state||'stopped'} · simbol ${x.symbol || 'XAUUSD'} · quote BTC ${s?.protocol!==2?'perbarui penghubung':(s?.quoteOkBtc?'valid':'belum valid')} · saldo ${s?.balance ?? '-'} · equity ${s?.equity ?? '-'} · posisi ${s?.positions ?? '-'}`;
+      `Laptop online · ${s?.demo?'akun demo':'akun bukan demo / belum terdeteksi'} · bot ${s?.state||'stopped'} · simbol ${x.symbol || 'XAUUSD'} · quote BTC ${s?.protocol!==3?'perbarui penghubung':(s?.quoteOkBtc?'valid':'belum valid')} · saldo ${s?.balance ?? '-'} · equity ${s?.equity ?? '-'} · posisi ${s?.positions ?? '-'}`;
   }catch(e){pilotRunning=false; $('#pilotSymbol').disabled=false; $('#pilotStatus').textContent='Koneksi terputus: '+e.message;}
   finally{pilotBusy=false;}
 }
-$('#pilotPair').onclick=async()=>{try{await pilotCall('register');pilotPaired=true;pilotRunning=false;$('#pilotStart').disabled=true;$('#pilotStop').disabled=false;await pilotUpdate();}catch(e){toast(e.message,true);}};
+$('#pilotPair').onclick=async()=>{try{await pilotCall('register');pilotPaired=true;pilotRunning=false;$('#pilotStart').disabled=false;$('#pilotStop').disabled=false;await pilotUpdate();}catch(e){toast(e.message,true);}};
 $('#pilotStart').onclick=async()=>{
   if(!confirm(`Mengizinkan percobaan order ${$('#pilotSymbol').value} pada akun DEMO? Bot eksperimental belum diuji HFM.`))return;
   try{await pilotCall('control',{action:'start',symbol:$('#pilotSymbol').value});pilotRunning=true;$('#pilotSymbol').disabled=true;toast('Permintaan start demo dikirim.');await pilotUpdate();}catch(e){toast(e.message,true);}
