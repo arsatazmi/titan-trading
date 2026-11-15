@@ -24,6 +24,21 @@ AKUN
 - Owner: `starboy` dan `arsatazmi12@gmail.com`. Keduanya bisa membuka /admin.
 - Status owner disimpan di `ADMIN_EMAILS` (Vercel) DAN `titan_vault_users.is_admin` (Supabase).
 
+
+PERBAIKAN (15 Nov 2026, 14:15 UTC)
+----------------------------------
+- Temuan: `accounts` di database kosong -> request simpan akun broker tidak
+  pernah sampai ke database, sementara UI menampilkan toast "berhasil" tanpa
+  menunggu jawaban server.
+- Semua penulisan state (tambah/edit/hapus broker, start/stop bot, detail akun,
+  bukti bayar) sekarang memakai POST + `op` eksplisit, di-`await`, dan error
+  ditampilkan sebagai toast merah bila gagal.
+- Refresh data langsung setelah penulisan (tidak lagi menunggu polling 4 detik).
+- Cek origin/CSRF disesuaikan untuk alias Vercel + `Sec-Fetch-Site`.
+- Bukti bayar ditulis berurutan agar tidak saling menimpa.
+- Uji produksi: PUT langsung, POST langsung, dan POST via HTTP Vercel => 200;
+  data uji dihapus kembali. `npm run smoke`: 29 lulus, 0 gagal.
+
 VERIFIKASI LIVE
 ---------------
 - /api/health          : healthy, checks.database / authAnonKey / authAdminApi = true
