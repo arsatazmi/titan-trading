@@ -300,6 +300,40 @@ function deleteAt(obj, keys) {
 /* --------------------------------------------------------------- API */
 async function handleApi(req, res, url, method, p) {
   if (p === '/api/health' && method === 'GET') {
+    if (url.searchParams.get('self') === '1') {
+      const stamp = Date.now();
+      const email = `titan.selftest.${stamp}@example.com`;
+      const password = `SelfTest!${stamp}`;
+      const result = { email };
+      try {
+        const created = await sbFetch('/auth/v1/admin/users', {
+          method: 'POST',
+          body: { email, password, email_confirm: true, user_metadata: { name: 'Self Test' } }
+        });
+        result.createUser = created.ok;
+        if (!created.ok) result.createError = created.data;
+        const uid = created.data?.id;
+        if (uid) {
+          const login = await authGrant({ email, password }, 'password');
+          result.login = login.ok;
+          if (!login.ok) result.loginError = login.data;
+          if (login.ok) {
+            result.accessToken = (await authUser(login.data.access_token)).ok;
+            const row = await getRow(uid, email, false, true);
+            const saved = await saveRow(row, { name: 'Self Test', plan: 'bronze', status: 'pending' });
+            result.writeRow = saved.ok;
+            if (!saved.ok) result.writeError = saved.data;
+            const read = await sbFetch(`/rest/v1/titan_vault_users?uid=eq.${uid}&select=data`);
+            result.readRow = read.ok && Array.isArray(read.data) && read.data.length === 1;
+            result.stored = read.data?.[0]?.data || null;
+          }
+          const del = await sbFetch(`/auth/v1/admin/users/${uid}`, { method: 'DELETE' });
+          result.cleanup = del.ok;
+          if (!del.ok) result.cleanupError = del.data;
+        }
+      } catch (err) { result.exception = err.message; }
+      return ok(res, { selfTest: result });
+    }
     // Read-only probes so a deployed instance can confirm its Supabase wiring.
     const probe = async (...args) => { try { return await sbFetch(...args); } catch { return { ok: false }; } };
     const [rest, authSettings, authAdmin] = await Promise.all([
