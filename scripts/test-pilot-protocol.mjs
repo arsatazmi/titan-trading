@@ -12,12 +12,14 @@ try {
   check(login.status===200,'local admin login');const token=login.data.sessionToken,csrf=login.data.csrfToken;
   const creds={deviceId:crypto.randomBytes(16).toString('hex'),secret:crypto.randomBytes(32).toString('hex')};
   check((await req('/api/pilot/register',creds,token,csrf)).status===200,'pair mock device');
-  const hb=(protocol,boot=false)=>req('/api/pilot/heartbeat',{...creds,boot,status:{protocol,connected:true,demo:true,ready:true,enabled:true,state:'stopped',quoteOkBtc:true,quoteOkXau:true}});
+  const hb=(protocol,boot=false,btcNoDailyLimit=false)=>req('/api/pilot/heartbeat',{...creds,boot,status:{protocol,connected:true,demo:true,ready:true,enabled:true,state:'stopped',quoteOkBtc:true,quoteOkXau:true,btcNoDailyLimit}});
   const ctrl=(action,symbol)=>req('/api/pilot/control',{...creds,action,symbol},token,csrf);
   await hb(3);check((await ctrl('start','#BTCUSD')).status===400,'v3 BTC rejected');
   check((await ctrl('start','XAUUSD')).status===200,'v3 gold still allowed');
   await ctrl('stop','XAUUSD');await hb(4,true);check((await ctrl('start','#BTCUSD')).status===200,'v4 BTC accepted');
   check((await hb(4)).data.run===true,'v4 BTC lease active');
+  await hb(4,false,true);check((await req('/api/pilot/status',creds,token,csrf)).data.status.btcNoDailyLimit===true,'local risk override reflected in status');
+  await hb(4,false,false);check((await req('/api/pilot/status',creds,token,csrf)).data.status.btcNoDailyLimit===false,'default daily check reflected in status');
   check((await hb(3)).data.run===false,'downgrade BTC revokes lease');
   check((await ctrl('renew','#BTCUSD')).status===400,'revoked lease cannot renew');
 } finally {proc.kill();fs.rmSync(dir,{recursive:true,force:true});}

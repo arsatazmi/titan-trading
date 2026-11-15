@@ -85,16 +85,18 @@ class DemoClockMT5:
         return self._mt5.order_send(request)
 
 
-def run_demo_cycle(mt5,symbol,state,now,clock=None):
+def run_demo_cycle(mt5,symbol,state,now,clock=None,*,disable_btc_daily_loss=False):
     """For bridge lease + local opt-in only; never accepts non-demo accounts."""
     account=mt5.account_info()
     bot.demo_only(mt5,account)
     key=bot.identity(account)
-    try:
-        snapshot(mt5,now)
-    except (ClockUncertain,ShadowUncertain,ValueError,OverflowError,OSError) as e:
-        raise bot.Blocked('batas harian belum dapat diperiksa: '+str(e))
+    # Explicit local opt-in affects BTC demo only. XAU always retains the daily gate.
+    if not (disable_btc_daily_loss is True and symbol == '#BTCUSD'):
+        try:
+            snapshot(mt5,now)
+        except (ClockUncertain,ShadowUncertain,ValueError,OverflowError,OSError) as e:
+            raise bot.Blocked('batas harian belum dapat diperiksa: '+str(e))
     normalized_tick(mt5,symbol,now)
     proxy=DemoClockMT5(mt5,key,clock=clock)
     proxy.check_demo_account()
-    return bot.run_cycle(proxy,symbol,state,now)
+    return bot.run_cycle(proxy,symbol,state,now,disable_btc_daily_loss=disable_btc_daily_loss)

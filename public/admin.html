@@ -123,7 +123,7 @@ async function pilotUpdate(){
     if(pilotRunning) await pilotCall('control',{action:'renew',symbol:$('#pilotSymbol').value});
     const x=await pilotCall('status'), s=x.status;
     $('#pilotStatus').textContent=!x.online?'Laptop offline atau belum menjalankan penghubung.':
-      `Laptop online · ${s?.demo?'akun demo':'akun bukan demo / belum terdeteksi'} · bot ${s?.state||'stopped'} · simbol ${x.symbol || 'XAUUSD'} · quote BTC ${(s?.protocol||0)<4?'perbarui penghubung':(s?.quoteOkBtc?'valid':'belum valid')} · saldo ${s?.balance ?? '-'} · equity ${s?.equity ?? '-'} · posisi ${s?.positions ?? '-'}`;
+      `Laptop online · ${s?.demo?'akun demo':'akun bukan demo / belum terdeteksi'} · bot ${s?.state||'stopped'} · simbol ${x.symbol || 'XAUUSD'} · quote BTC ${(s?.protocol||0)<4?'perbarui penghubung':(s?.quoteOkBtc?'valid':'belum valid')} · batas rugi harian BTC ${s?.btcNoDailyLimit?'DINONAKTIFKAN (opsi lokal)':'aktif jika didukung bridge'} · saldo ${s?.balance ?? '-'} · equity ${s?.equity ?? '-'} · posisi ${s?.positions ?? '-'}`;
   }catch(e){pilotRunning=false; $('#pilotSymbol').disabled=false; $('#pilotStatus').textContent='Koneksi terputus: '+e.message;}
   finally{pilotBusy=false;}
 }

@@ -31,13 +31,23 @@ Login di https://titan-trading-puce.vercel.app/admin dan hubungkan ID/kunci pera
 .\.venv\Scripts\python.exe bridge.py --enable-demo-trading
 ```
 
+### Opsi sementara: BTC demo tanpa batas rugi harian
+
+Batas harian aktif secara default. Jika memilih menonaktifkannya secara eksplisit, hentikan bridge lalu jalankan:
+
+```powershell
+.\.venv\Scripts\python.exe bridge.py --enable-demo-trading --demo-btc-no-daily-loss-limit
+```
+
+**Hanya BTC demo:** tidak ada pemeriksaan rugi harian atau rekonsiliasi riwayat NY; kerugian harian bisa jauh melebihi 1%. Emas tetap memakai batas harian. Perhitungan estimasi risiko 0,5% per entry dan risiko posisi terbuka 1% tetap ada, tetapi bukan jaminan batas rugi. Panel dan konsol menampilkan peringatan opsi lokal. Opsi berlaku sampai proses dihentikan; untuk mengaktifkan kembali pengaman, jalankan tanpa flag tersebut. Stop tidak menutup posisi; periksa MT5.
+
 - Pilih **XAUUSD** atau **#BTCUSD**, lalu klik **Start demo**. Untuk BTC server memerlukan bridge protokol 4; XAUUSD minimal protokol 3. Quote harus terbaca valid. Tetap buka panel, laptop dan MT5; izin berjalan diperbarui tiap beberapa detik dan habis sekitar 35 detik setelah sambungan terputus. Siklus yang sedang berjalan masih dapat selesai setelah Stop atau lease kedaluwarsa. Stop tidak otomatis menutup posisi; periksa tab Trade MT5.
 - Hanya satu simbol dalam satu waktu. Jika posisi bot pada simbol lain masih terbuka, perpindahan diblokir. BTC: setiap candle M5 yang sudah tutup dibandingkan dengan high/low 12 candle M5 sebelumnya (1 jam); BUY hanya bila close di atas high dan sinyal berumur maksimal 60 detik. Tidak ada batas sesi NY dan tidak ada filter berita; ketersediaan bergantung broker. Maksimal satu posisi BTC milik bot pada satu waktu. Candle kurang/lonjakan waktu membuat order diblokir. Emas tetap menggunakan ORB 09:30–09:45 NY, jendela hingga 15:30 NY.
-- Eksperimen target 0,5% per order, 1% risiko gabungan/rugi harian dan maksimal 20 posisi. Ini estimasi, **bukan batas kerugian**. Spread, komisi, gap, slippage, posisi manual, gangguan jaringan, hasil order tidak pasti, atau penolakan broker bisa mengubah hasil. SL memakai titik tengah rentang dan TP disetel sekitar 2R, tetapi logika lama juga dapat menutup posisi bot lebih awal bila estimasi profit bersih positif; penutupan profit tidak dijamin.
+- Eksperimen target 0,5% per order, 1% risiko gabungan dan maksimal 20 posisi; batas rugi harian 1% berlaku secara default kecuali opsi BTC di atas diaktifkan. Ini estimasi, **bukan batas kerugian**. Spread, komisi, gap, slippage, posisi manual, gangguan jaringan, hasil order tidak pasti, atau penolakan broker bisa mengubah hasil. SL memakai titik tengah rentang dan TP disetel sekitar 2R, tetapi logika lama juga dapat menutup posisi bot lebih awal bila estimasi profit bersih positif; penutupan profit tidak dijamin.
 - Saat hasil order tidak pasti, bot menyimpan intent dan memblokir order baru. Jangan hapus `bot-state.sqlite3` atau lock tanpa memeriksa posisi serta riwayat MT5. Tidak ada distributed lock untuk laptop lain: jangan jalankan bridge lain pada akun yang sama.
 
 ## Waktu server HFM
 
-Sampel pada 15 November 2026 menunjukkan waktu tick, candle dan transaksi sekitar dua jam di depan UTC. Bridge ini memakai model kandidat waktu server HFM GMT+2 musim dingin/GMT+3 musim panas, bukan offset +2 tetap; model memblokir siklus bila data/quote tidak konsisten atau dekat perubahan DST yang diperkirakan. Jam perubahan broker dan kelengkapan riwayat belum dibuktikan untuk seluruh musim. Jam laptop harus benar. Perhitungan rugi memakai hari New York dan dua pembacaan riwayat; transaksi penyesuaian saldo atau credit membuat proses berhenti. Ini tetap tidak menjamin perhitungan sempurna.
+Sampel pada 15 November 2026 menunjukkan waktu tick, candle dan transaksi sekitar dua jam di depan UTC. Bridge ini memakai model kandidat waktu server HFM GMT+2 musim dingin/GMT+3 musim panas, bukan offset +2 tetap; model memblokir siklus bila data/quote tidak konsisten atau dekat perubahan DST yang diperkirakan. Jam perubahan broker dan kelengkapan riwayat belum dibuktikan untuk seluruh musim. Jam laptop harus benar. Ketika batas harian aktif, perhitungan rugi memakai hari New York dan dua pembacaan riwayat; transaksi penyesuaian saldo atau credit membuat proses berhenti. Ini tetap tidak menjamin perhitungan sempurna.
 
 Sinyal BTC adalah adaptasi rolling-range terpisah, bukan entry upstream saham. BTC memakai kalkulasi midpoint/2R dan validasi minimum jarak stop dari `trader-exit` upstream (berbasis pembulatan sen), lalu disesuaikan dengan tick dan ukuran lot MT5. Risk check dan sizing upstream saham tidak dipakai; pengaman HFM di bot ini adalah adaptasi. Sumber https://github.com/Jakeschincariol/day-trader-skill (MIT); lisensi di `DAY_TRADER_SKILL_LICENSE.txt`. Proyek upstream bukan konektor HFM dan tidak memvalidasi strategi ini.

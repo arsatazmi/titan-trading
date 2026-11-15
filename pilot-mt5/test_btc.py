@@ -52,6 +52,34 @@ class BTCPilotTests(unittest.TestCase):
         self.mt.account.equity=9899
         with self.assertRaises(Blocked):run_cycle(self.mt,'#BTCUSD',self.db,self.now)
         self.assertFalse(self.mt.sent)
+    def test_opt_in_btc_ignores_daily_loss_but_retains_stop_and_sizing(self):
+        self.mt.account.equity=9899
+        self.assertIn('diterima',run_cycle(self.mt,'#BTCUSD',self.db,self.now,disable_btc_daily_loss=True))
+        self.assertEqual(len(self.mt.sent),1)
+        order=self.mt.sent[0]
+        self.assertGreater(order['sl'],0)
+        self.assertLess(order['sl'],order['price'])
+        self.assertLessEqual(-self.mt.order_calc_profit(self.mt.ORDER_TYPE_BUY,'#BTCUSD',order['volume'],order['price'],order['sl']),self.mt.account.balance*.005)
+    def test_opt_in_does_not_read_daily_history(self):
+        self.mt.history_deals_get=lambda *args,**kwargs:self.fail('daily history was read')
+        self.assertIn('diterima',run_cycle(self.mt,'#BTCUSD',self.db,self.now,disable_btc_daily_loss=True))
+    def test_override_requires_actual_boolean_true(self):
+        self.mt.account.equity=9899
+        with self.assertRaises(Blocked):run_cycle(self.mt,'#BTCUSD',self.db,self.now,disable_btc_daily_loss='true')
+    def test_opt_in_does_not_allow_real(self):
+        self.mt.account.trade_mode=2
+        with self.assertRaises(Blocked):run_cycle(self.mt,'#BTCUSD',self.db,self.now,disable_btc_daily_loss=True)
+        self.assertFalse(self.mt.sent)
+    def test_opt_in_does_not_disable_gold_daily_limit(self):
+        self.mt.account.equity=9899
+        with self.assertRaises(Blocked):run_cycle(self.mt,'XAUUSD',self.db,self.now,disable_btc_daily_loss=True)
+        self.assertFalse(self.mt.sent)
+    def test_opt_in_still_checks_fresh_tick_and_nonpositive_equity(self):
+        self.mt.tick.time -= 30
+        with self.assertRaises(Blocked):run_cycle(self.mt,'#BTCUSD',self.db,self.now,disable_btc_daily_loss=True)
+        self.mt.tick.time=self.now.timestamp();self.mt.account.equity=0
+        with self.assertRaises(Blocked):run_cycle(self.mt,'#BTCUSD',self.db,self.now,disable_btc_daily_loss=True)
+        self.assertFalse(self.mt.sent)
     def test_sunday_outside_ny_session_can_send(self):
         self.now=dt.datetime(2026,11,15,1,0,5,tzinfo=UTC)
         self.mt.tick.time=self.now.timestamp()

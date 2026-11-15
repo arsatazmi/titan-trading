@@ -44,9 +44,10 @@ def number(x):
         return None
 
 
-def snapshot(mt5, enabled, state):
+def snapshot(mt5, enabled, state, btc_no_daily_limit=False):
     """No broker credentials, server names or account numbers leave the laptop."""
-    st = {'connected': False, 'demo': False, 'ready': False, 'enabled': enabled, 'state': state, 'protocol': 4}
+    st = {'connected': False, 'demo': False, 'ready': False, 'enabled': enabled, 'state': state, 'protocol': 4,
+          'btcNoDailyLimit': bool(enabled and btc_no_daily_limit)}
     account = mt5.account_info()
     terminal = mt5.terminal_info()
     if not account or not terminal or not terminal.connected:
@@ -98,7 +99,11 @@ def main():
     parser.add_argument('--symbol', default='XAUUSD', help='Dipertahankan untuk kompatibilitas; simbol order dipilih di website')
     parser.add_argument('--terminal', default=None)
     parser.add_argument('--enable-demo-trading', action='store_true', help='Izinkan order DEMO yang diminta website; default mati')
+    parser.add_argument('--demo-btc-no-daily-loss-limit', action='store_true',
+                        help='DEMO BTC SAJA: nonaktifkan pembatas rugi harian (risiko lebih besar)')
     args=parser.parse_args()
+    if args.demo_btc_no_daily_loss_limit and not args.enable_demo_trading:
+        parser.error('opsi batas harian hanya berlaku bersama --enable-demo-trading')
     if args.setup:
         setup(); return
     if not CONFIG.exists(): parser.exit(1, 'Jalankan dulu bridge.py --setup.\n')
@@ -119,11 +124,13 @@ def main():
         initialized=mt5.initialize(path=args.terminal) if args.terminal else mt5.initialize()
         if not initialized: parser.exit(1, 'Gagal membuka MT5: %s\n' % (mt5.last_error(),))
         print('Penghubung demo aktif. Izin order lokal:', 'AKTIF' if args.enable_demo_trading else 'MATI (read-only)', flush=True)
+        if args.demo_btc_no_daily_loss_limit:
+            print('PERINGATAN: batas rugi HARIAN BTC demo DINONAKTIFKAN; risiko harian tidak dibatasi.',flush=True)
         last_state='stopped'
         boot=True
         while True:
             try:
-                status, account=snapshot(mt5,args.enable_demo_trading,last_state)
+                status, account=snapshot(mt5,args.enable_demo_trading,last_state,args.demo_btc_no_daily_loss_limit)
                 started=time.monotonic()
                 was_boot=boot
                 result=heartbeat(credentials,status,boot=was_boot)
@@ -141,7 +148,10 @@ def main():
                     if any(p.magic == bot.MAGIC and p.symbol != symbol for p in positions):
                         raise bot.Blocked('ada posisi bot pada simbol lain; periksa dan tutup sebelum mengganti')
                     bind_account(state_db,account)
-                    print(hfm_demo_clock.run_demo_cycle(mt5,symbol,state_db,dt.datetime.now(bot.UTC)),flush=True)
+                    if args.demo_btc_no_daily_loss_limit and symbol == '#BTCUSD':
+                        print('PERINGATAN: BTC demo tanpa batas rugi harian.',flush=True)
+                    print(hfm_demo_clock.run_demo_cycle(mt5,symbol,state_db,dt.datetime.now(bot.UTC),
+                                                       disable_btc_daily_loss=args.demo_btc_no_daily_loss_limit),flush=True)
                     last_state='running'
                 else: last_state='stopped'
             except bot.Blocked as e:

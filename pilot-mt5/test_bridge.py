@@ -31,6 +31,17 @@ class BridgeTests(unittest.TestCase):
         fake.symbol_info_tick=lambda symbol:NS(bid=100,ask=101,time=__import__('time').time()+offset)
         st,_=bridge.snapshot(fake,True,'stopped')
         self.assertTrue(st['quoteOkBtc']); self.assertEqual(st['protocol'],4)
+    def test_daily_override_status_only_when_local_order_opt_in(self):
+        fake=FakeMT5()
+        status,_=bridge.snapshot(fake,True,'stopped',True)
+        self.assertTrue(status['btcNoDailyLimit'])
+        status,_=bridge.snapshot(fake,False,'stopped',True)
+        self.assertFalse(status['btcNoDailyLimit'])
+        status,_=bridge.snapshot(fake,True,'stopped')
+        self.assertFalse(status['btcNoDailyLimit'])
+    def test_daily_override_requires_order_opt_in(self):
+        with patch.object(sys,'argv',['bridge.py','--demo-btc-no-daily-loss-limit']):
+            with self.assertRaises(SystemExit):bridge.main()
     def test_wrong_offset_quote_is_not_ready(self):
         fake=FakeMT5()
         st,_=bridge.snapshot(fake,True,'stopped')

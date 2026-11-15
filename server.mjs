@@ -360,7 +360,7 @@ async function handleApi(req, res, url) {
       device.status = {connected: st.connected === true, demo: st.demo === true, ready: st.ready === true,
         enabled: st.enabled === true, balance: finite(st.balance), equity: finite(st.equity),
         positions: Number.isInteger(st.positions) && st.positions >= 0 && st.positions <= 10000 ? st.positions : null,
-        protocol: st.protocol === 4 ? 4 : (st.protocol === 3 ? 3 : (st.protocol === 2 ? 2 : 1)), quoteOkXau: st.quoteOkXau === true, quoteOkBtc: st.quoteOkBtc === true,
+        protocol: st.protocol === 4 ? 4 : (st.protocol === 3 ? 3 : (st.protocol === 2 ? 2 : 1)), quoteOkXau: st.quoteOkXau === true, quoteOkBtc: st.quoteOkBtc === true, btcNoDailyLimit: st.btcNoDailyLimit === true,
         state: ['stopped','running','blocked'].includes(st.state) ? st.state : 'stopped'};
       const selectedQuoteOk = device.symbol === '#BTCUSD' ? device.status.quoteOkBtc : device.status.quoteOkXau;
       if (!PILOT_DEMO_ENABLED || body.boot === true || (device.status.protocol < 3 || (device.symbol === '#BTCUSD' && device.status.protocol < 4)) || !device.status.connected || !device.status.demo || !device.status.ready || !device.status.enabled || device.status.state === 'blocked' || !selectedQuoteOk) device.leaseUntil=0;

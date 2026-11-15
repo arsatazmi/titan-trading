@@ -26,6 +26,22 @@ class Tests(unittest.TestCase):
         self.mt.account.trade_mode=2
         with self.assertRaises(Blocked):self.cycle()
         self.assertEqual(self.mt.sent,[])
+    def test_explicit_opt_in_skips_ny_daily_snapshot_for_btc(self):
+        self.mt.account.equity=9899
+        with patch('hfm_demo_clock.snapshot') as history_check:
+            result=run_demo_cycle(self.mt,'#BTCUSD',self.db,self.now,clock=lambda:self.now,disable_btc_daily_loss=True)
+            self.assertIn('diterima',result)
+            history_check.assert_not_called()
+    def test_xau_keeps_daily_snapshot_even_with_btc_override(self):
+        with patch('hfm_demo_clock.snapshot',side_effect=ValueError('blocked')) as history_check:
+            with self.assertRaises(Blocked):
+                run_demo_cycle(self.mt,'XAUUSD',self.db,self.now,clock=lambda:self.now,disable_btc_daily_loss=True)
+            history_check.assert_called_once()
+    def test_opt_in_still_blocks_real_in_clock_adapter(self):
+        self.mt.account.trade_mode=2
+        with self.assertRaises(Blocked):
+            run_demo_cycle(self.mt,'#BTCUSD',self.db,self.now,clock=lambda:self.now,disable_btc_daily_loss=True)
+        self.assertFalse(self.mt.sent)
     def test_mismatch_or_stale_clock_blocked(self):
         self.mt.tick.time-=7200
         with self.assertRaises(Blocked):self.cycle()

@@ -191,7 +191,7 @@ def close_profitable(mt5, account_key, state, positions, symbol, now):
         print('Permintaan penutupan posisi demo selesai; hasil aktual bisa berbeda.', flush=True)
 
 
-def run_cycle(mt5, symbol, state, now):
+def run_cycle(mt5, symbol, state, now, *, disable_btc_daily_loss=False):
     account = mt5.account_info()
     demo_only(mt5, account)
     account_key = identity(account)
@@ -219,10 +219,15 @@ def run_cycle(mt5, symbol, state, now):
         raise Blocked('ada pending order di akun; order baru diblokir')
     if len(positions) >= MAX_POSITIONS:
         raise Blocked('batas maksimal 20 posisi tercapai')
-    baseline, _ = daily_baseline(mt5, account, now)
     equity = number(account.equity)
-    if equity <= baseline * (1 - DAILY_LOSS):
-        raise Blocked('batas rugi harian 1% tercapai; order baru dihentikan')
+    if equity <= 0:
+        raise Blocked('equity tidak positif; order baru dihentikan')
+    skip_daily = disable_btc_daily_loss is True and symbol == '#BTCUSD'
+    baseline = None
+    if not skip_daily:
+        baseline, _ = daily_baseline(mt5, account, now)
+        if equity <= baseline * (1 - DAILY_LOSS):
+            raise Blocked('batas rugi harian 1% tercapai; order baru dihentikan')
     tick = fresh_tick(mt5, symbol, now)
     if symbol == '#BTCUSD':
         # One owned BTC position at a time; manual positions remain included in risk.
@@ -278,7 +283,11 @@ def run_cycle(mt5, symbol, state, now):
     if per_lot is None or number(per_lot) >= 0:
         raise Blocked('risiko lot tidak dapat dihitung')
     open_risk = exposure_risk(mt5, positions, now)
-    total_budget = min(number(account.balance) * TOTAL_RISK, max(0.0, equity - baseline * (1 - DAILY_LOSS)))
+    if skip_daily:
+        # Open stop-risk cap is retained, but this is NOT a daily loss limit.
+        total_budget = min(number(account.balance) * TOTAL_RISK, equity)
+    else:
+        total_budget = min(number(account.balance) * TOTAL_RISK, max(0.0, equity - baseline * (1 - DAILY_LOSS)))
     remaining = total_budget - open_risk
     limit = min(number(account.balance) * PER_ORDER, remaining)
     volume = volume_for_risk(limit, -number(per_lot), info)
